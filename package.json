@@ -1,0 +1,56 @@
+{
+  "name": "reactive-portfolio-dapp",
+  "version": "1.0.0",
+  "description": "Automated Trading Portfolio dApp on Reactive Network with Svelte frontend",
+  "main": "index.js",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "deploy": "npx hardhat run scripts/deploy.js --network reactive",
+    "deploy:testnet": "npx hardhat run scripts/deploy.js --network reactiveTestnet",
+    "verify": "npx hardhat verify --network reactive",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "frontend:preview": "cd frontend && npm run preview",
+    "network-info": "node scripts/network-info.js",
+    "interact": "node scripts/interact.js",
+    "setup": "npm install && cd frontend && npm install",
+    "dev": "concurrently \"npm run frontend:dev\" \"echo 'Smart contracts ready for deployment'\"",
+    "build": "npm run compile && npm run frontend:build",
+    "clean": "npx hardhat clean && rm -rf frontend/build"
+  },
+  "keywords": [
+    "blockchain",
+    "defi",
+    "reactive-network",
+    "portfolio-management",
+    "svelte",
+    "hardhat",
+    "solidity"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "@typechain/hardhat": "^6.1.6",
+    "@typechain/ethers-v5": "^10.2.1",
+    "chai": "^4.3.7",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.17.1",
+    "hardhat-gas-reporter": "^1.0.9",
+    "solidity-coverage": "^0.8.4",
+    "typechain": "^8.3.1",
+    "concurrently": "^8.2.0",
+    "dotenv": "^16.3.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.3",
+    "@uniswap/sdk-core": "^4.0.7",
+    "@uniswap/v3-sdk": "^3.10.0",
+    "@uniswap/smart-order-router": "^3.23.0"
+  }
+}

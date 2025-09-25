@@ -42,27 +42,112 @@ The app integrates with **Uniswap APIs** for buying tokens and price data, while
 ---
 
 ## 📂 Project Structure
-- `/contracts` → Solidity smart contracts (ERC-20 interactions + automation hooks).  
-- `/frontend` → Svelte app (UI + wallet + charts).  
-- `/backend` → Fastify server for orchestration + DB persistence.  
-- `/scripts` → Deployment + testing scripts.  
-- `/tests` → Unit & integration tests (mock trading + RCS simulation).  
+```
+├── contracts/           # Solidity smart contracts
+│   └── ReactiveContract.sol
+├── frontend/           # Svelte + TailwindCSS app
+│   ├── src/
+│   │   ├── lib/        # Svelte components
+│   │   │   ├── ContractInteraction.svelte
+│   │   │   ├── PriceChart.svelte
+│   │   │   ├── WalletConnection.svelte
+│   │   │   └── uniswap.js
+│   │   └── routes/     # SvelteKit routes
+│   └── package.json
+├── scripts/            # Deployment & interaction scripts
+│   ├── deploy.js
+│   ├── interact.js
+│   └── network-info.js
+├── tests/              # Smart contract tests
+│   └── ReactiveContract.test.js
+├── hardhat.config.js   # Hardhat configuration for Reactive Network
+└── package.json        # Root package configuration
+```
+
+---
+
+## 🛠 Setup Instructions
+
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
+- Git
+- MetaMask browser extension
+
+### Installation
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd Reactive
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   # Install root dependencies
+   npm install
+   
+   # Install frontend dependencies
+   cd frontend
+   npm install
+   cd ..
+   ```
+
+3. **Environment Setup:**
+   ```bash
+   # Copy environment template
+   cp .env.example .env
+   
+   # Add your private keys and API keys to .env
+   ```
+
+4. **Configure MetaMask:**
+   - Add Reactive Network to MetaMask
+   - Network details in `scripts/network-info.js`
+
+### Development
+
+**Smart Contracts:**
+```bash
+# Compile contracts
+npx hardhat compile
+
+# Run tests
+npx hardhat test
+
+# Deploy to Reactive Network
+npx hardhat run scripts/deploy.js --network reactive
+```
+
+**Frontend:**
+```bash
+# Start development server
+cd frontend
+npm run dev
+```
+
+**Scripts:**
+```bash
+# Get network information
+node scripts/network-info.js
+
+# Interact with deployed contracts
+node scripts/interact.js
+```
 
 ---
 
 ## 🧪 Testing & Validation
-- Mock Uniswap trades for development.  
-- Simulated stop-loss and auto-sell scenarios.  
-- RCS automation tested on Reactive Network testnet.  
-- Edge cases: zero balance, network errors, multiple triggers.  
+- **Smart Contracts:** Mocha/Chai with Hardhat
+- **Frontend:** Svelte testing utilities
+- **Integration:** End-to-end wallet connection tests
+- **RCS Automation:** Tested on Reactive Network testnet
 
 ---
 
 ## 🚀 Deployment
-- Backend: Deployed to Reactive Network mainnet.  
-- Frontend: Deployed via Vercel/Netlify.  
-- Contracts: Verified on Reactive Network explorer.  
-- Wallet: MetaMask (Reactive Network configured).  
+- **Smart Contracts:** Deployed to Reactive Network mainnet via Hardhat
+- **Frontend:** Static deployment via Vercel/Netlify
+- **Verification:** Contract verification on Reactive Network explorer  
 
 ---
 
