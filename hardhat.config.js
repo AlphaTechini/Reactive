@@ -1,12 +1,13 @@
-require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config();
+import "@nomicfoundation/hardhat-toolbox";
+import { config } from "dotenv";
+config();
 
 const REACTIVE_NETWORK_RPC = process.env.REACTIVE_NETWORK_RPC || "https://kopli-rpc.reactive.network";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 
 /** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
+export default {
   solidity: {
     version: "0.8.19",
     settings: {

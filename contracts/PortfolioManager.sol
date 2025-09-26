@@ -2,6 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -82,8 +83,8 @@ contract PortfolioManager is ReentrancyGuard, Ownable {
         require(token != address(0), "Invalid token address");
         require(!supportedTokens[token].isSupported, "Token already supported");
         
-        // Get token decimals from ERC-20 contract
-        uint8 decimals = IERC20(token).decimals();
+    // Get token decimals from ERC-20 contract (IERC20Metadata includes decimals)
+    uint8 decimals = IERC20Metadata(token).decimals();
         
         supportedTokens[token] = TokenInfo({
             isSupported: true,

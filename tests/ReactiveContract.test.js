@@ -29,22 +29,22 @@ describe("PortfolioManager", function () {
     // Deploy PortfolioManager contract
     const PortfolioManager = await ethers.getContractFactory("PortfolioManager");
     portfolioManager = await PortfolioManager.deploy();
-    await portfolioManager.deployed();
+    await portfolioManager.waitForDeployment();
 
     // Deploy mock ERC20 tokens for testing
     const MockERC20Contract = await ethers.getContractFactory("MockERC20");
-    mockToken1 = await MockERC20Contract.deploy("Bitcoin", "BTC", 18, ethers.utils.parseEther("21000000"));
-    mockToken2 = await MockERC20Contract.deploy("Ethereum", "ETH", 18, ethers.utils.parseEther("120000000"));
-    mockToken3 = await MockERC20Contract.deploy("USD Coin", "USDC", 6, ethers.utils.parseUnits("1000000000", 6));
+    mockToken1 = await MockERC20Contract.deploy("Bitcoin", "BTC", 18, ethers.parseEther("21000000"));
+    mockToken2 = await MockERC20Contract.deploy("Ethereum", "ETH", 18, ethers.parseEther("120000000"));
+    mockToken3 = await MockERC20Contract.deploy("USD Coin", "USDC", 6, ethers.parseUnits("1000000000", 6));
 
-    await mockToken1.deployed();
-    await mockToken2.deployed();
-    await mockToken3.deployed();
+    await mockToken1.waitForDeployment();
+    await mockToken2.waitForDeployment();
+    await mockToken3.waitForDeployment();
 
     // Add supported tokens
-    await portfolioManager.addSupportedToken(mockToken1.address, "BTC", 3); // BTC category
-    await portfolioManager.addSupportedToken(mockToken2.address, "ETH", 0); // ALTCOIN category
-    await portfolioManager.addSupportedToken(mockToken3.address, "USDC", 2); // STABLECOIN category
+    await portfolioManager.addSupportedToken(await mockToken1.getAddress(), "BTC", 3); // BTC category
+    await portfolioManager.addSupportedToken(await mockToken2.getAddress(), "ETH", 0); // ALTCOIN category
+    await portfolioManager.addSupportedToken(await mockToken3.getAddress(), "USDC", 2); // STABLECOIN category
   });
 
   describe("Deployment", function () {
@@ -53,13 +53,13 @@ describe("PortfolioManager", function () {
     });
 
     it("Should deploy successfully", async function () {
-      expect(portfolioManager.address).to.not.be.undefined;
+      expect(await portfolioManager.getAddress()).to.not.be.undefined;
     });
   });
 
   describe("Token Management", function () {
     it("Should add supported tokens correctly", async function () {
-      const tokenInfo = await portfolioManager.getTokenInfo(mockToken1.address);
+      const tokenInfo = await portfolioManager.getTokenInfo(await mockToken1.getAddress());
       expect(tokenInfo.isSupported).to.be.true;
       expect(tokenInfo.symbol).to.equal("BTC");
       expect(tokenInfo.category).to.equal(3); // BTC category
@@ -68,15 +68,15 @@ describe("PortfolioManager", function () {
     it("Should list all supported tokens", async function () {
       const supportedTokens = await portfolioManager.getSupportedTokens();
       expect(supportedTokens.length).to.equal(3);
-      expect(supportedTokens).to.include(mockToken1.address);
-      expect(supportedTokens).to.include(mockToken2.address);
-      expect(supportedTokens).to.include(mockToken3.address);
+      expect(supportedTokens).to.include(await mockToken1.getAddress());
+      expect(supportedTokens).to.include(await mockToken2.getAddress());
+      expect(supportedTokens).to.include(await mockToken3.getAddress());
     });
 
     it("Should not allow non-owner to add tokens", async function () {
       await expect(
         portfolioManager.connect(user1).addSupportedToken(
-          ethers.constants.AddressZero,
+          ethers.ZeroAddress,
           "TEST",
           0
         )
@@ -84,8 +84,8 @@ describe("PortfolioManager", function () {
     });
 
     it("Should remove supported tokens", async function () {
-      await portfolioManager.removeSupportedToken(mockToken1.address);
-      const tokenInfo = await portfolioManager.getTokenInfo(mockToken1.address);
+      await portfolioManager.removeSupportedToken(await mockToken1.getAddress());
+      const tokenInfo = await portfolioManager.getTokenInfo(await mockToken1.getAddress());
       expect(tokenInfo.isSupported).to.be.false;
     });
   });
@@ -174,7 +174,7 @@ describe("PortfolioManager", function () {
 
   describe("Portfolio Rebalancing", function () {
     it("Should rebalance portfolio correctly", async function () {
-      const tokens = [mockToken1.address, mockToken2.address, mockToken3.address];
+      const tokens = [await mockToken1.getAddress(), await mockToken2.getAddress(), await mockToken3.getAddress()];
       const percentages = [4000, 4000, 2000]; // 40%, 40%, 20%
       
       await portfolioManager.connect(user1).rebalancePortfolio(tokens, percentages);
@@ -182,7 +182,7 @@ describe("PortfolioManager", function () {
       const portfolio = await portfolioManager.getUserPortfolio(user1.address);
       expect(portfolio.totalAllocation).to.equal(10000); // 100%
       
-      const allocation1 = await portfolioManager.getUserTokenAllocation(user1.address, mockToken1.address);
+      const allocation1 = await portfolioManager.getUserTokenAllocation(user1.address, await mockToken1.getAddress());
       const allocation2 = await portfolioManager.getUserTokenAllocation(user1.address, mockToken2.address);
       const allocation3 = await portfolioManager.getUserTokenAllocation(user1.address, mockToken3.address);
       

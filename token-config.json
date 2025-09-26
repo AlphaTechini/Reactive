@@ -1,0 +1,40 @@
+{
+  "stablecoins": [
+    { "symbol": "USDC", "address": "0x0000000000000000000000000000000000001001", "decimals": 6, "category": "STABLECOIN", "poolFee": 0 },
+    { "symbol": "USDT", "address": "0x0000000000000000000000000000000000001002", "decimals": 6, "category": "STABLECOIN", "poolFee": 3000 }
+  ],
+  "altcoins": [
+    { "symbol": "ETH",  "address": "0x0000000000000000000000000000000000002001", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "WBTC", "address": "0x0000000000000000000000000000000000002002", "decimals": 8,  "category": "BTC", "poolFee": 3000 },
+    { "symbol": "LINK", "address": "0x0000000000000000000000000000000000002003", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "AAVE", "address": "0x0000000000000000000000000000000000002004", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "UNI",  "address": "0x0000000000000000000000000000000000002005", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "MATIC","address": "0x0000000000000000000000000000000000002006", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "ARB",  "address": "0x0000000000000000000000000000000000002007", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "OP",   "address": "0x0000000000000000000000000000000000002008", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "AVAX", "address": "0x0000000000000000000000000000000000002009", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "SOL",  "address": "0x0000000000000000000000000000000000002010", "decimals": 9,  "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "DOT",  "address": "0x0000000000000000000000000000000000002011", "decimals": 10, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "ATOM", "address": "0x0000000000000000000000000000000000002012", "decimals": 6,  "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "LDO",  "address": "0x0000000000000000000000000000000000002013", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "FIL",  "address": "0x0000000000000000000000000000000000002014", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "INJ",  "address": "0x0000000000000000000000000000000000002015", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "RNDR", "address": "0x0000000000000000000000000000000000002016", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "SUI",  "address": "0x0000000000000000000000000000000000002017", "decimals": 9,  "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "SEI",  "address": "0x0000000000000000000000000000000000002018", "decimals": 6,  "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "TIA",  "address": "0x0000000000000000000000000000000000002019", "decimals": 6,  "category": "ALTCOIN", "poolFee": 3000 },
+    { "symbol": "GRT",  "address": "0x0000000000000000000000000000000000002020", "decimals": 18, "category": "ALTCOIN", "poolFee": 3000 }
+  ],
+  "memecoins": [
+    { "symbol": "DOGE", "address": "0x0000000000000000000000000000000000003001", "decimals": 8,  "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "SHIB", "address": "0x0000000000000000000000000000000000003002", "decimals": 18, "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "PEPE", "address": "0x0000000000000000000000000000000000003003", "decimals": 18, "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "FLOKI","address": "0x0000000000000000000000000000000000003004", "decimals": 9,  "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "WIF",  "address": "0x0000000000000000000000000000000000003005", "decimals": 6,  "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "BONK", "address": "0x0000000000000000000000000000000000003006", "decimals": 5,  "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "SILLY","address": "0x0000000000000000000000000000000000003007", "decimals": 9,  "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "TURBO","address": "0x0000000000000000000000000000000000003008", "decimals": 18, "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "HOGE", "address": "0x0000000000000000000000000000000000003009", "decimals": 9,  "category": "MEMECOIN", "poolFee": 3000 },
+    { "symbol": "BABY", "address": "0x0000000000000000000000000000000000003010", "decimals": 18, "category": "MEMECOIN", "poolFee": 3000 }
+  ]
+}

@@ -1,10 +1,10 @@
-const { ethers } = require("hardhat");
+import { ethers } from "hardhat";
+import fs from "fs";
 
 async function main() {
   console.log("🔗 Interacting with PortfolioManager contract...\n");
 
   // Load deployment info
-  const fs = require("fs");
   let contractAddress;
   
   if (fs.existsSync("deployments.json")) {

@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+import { ethers } from "hardhat";
 
 async function main() {
   console.log("🚀 Deploying PortfolioManager to Reactive Network...\n");
@@ -9,10 +9,20 @@ async function main() {
   // Deploy the contract
   console.log("📋 Deploying PortfolioManager contract...");
   const portfolioManager = await PortfolioManager.deploy();
-  await portfolioManager.deployed();
+  await portfolioManager.waitForDeployment();
 
-  console.log("✅ PortfolioManager deployed to:", portfolioManager.address);
-  console.log("🔗 Transaction hash:", portfolioManager.deployTransaction.hash);
+  console.log("✅ PortfolioManager deployed to:", await portfolioManager.getAddress());
+  console.log("🔗 Transaction hash:", portfolioManager.deploymentTransaction().hash);
+
+  // Deploy AutomationController for RCS trigger strategies
+  console.log("\n🤖 Deploying AutomationController...");
+  const Automation = await ethers.getContractFactory("AutomationController");
+  // Use USDC (or stable) from supported tokens list (3rd in provided sample) as stable quote token
+  const usdcAddress = supportedTokens.find(t => t.symbol === 'USDC')?.address || supportedTokens[2].address;
+  const automation = await Automation.deploy(await portfolioManager.getAddress(), usdcAddress);
+  await automation.waitForDeployment();
+  console.log("✅ AutomationController deployed to:", await automation.getAddress());
+  console.log("🔗 Automation tx:", automation.deploymentTransaction().hash);
 
   // Define popular tokens for mainnet (you'll need to update these addresses)
   const supportedTokens = [
@@ -139,9 +149,16 @@ async function main() {
 
   // Save deployment info
   const deploymentInfo = {
-    contractName: "PortfolioManager",
-    contractAddress: portfolioManager.address,
-    deploymentTransaction: portfolioManager.deployTransaction.hash,
+    portfolioManager: {
+      contractName: "PortfolioManager",
+      contractAddress: await portfolioManager.getAddress(),
+      deploymentTransaction: portfolioManager.deploymentTransaction().hash
+    },
+    automationController: {
+      contractName: "AutomationController",
+      contractAddress: await automation.getAddress(),
+      deploymentTransaction: automation.deploymentTransaction().hash
+    },
     network: network.name,
     deployedAt: new Date().toISOString(),
     owner: await portfolioManager.owner(),

@@ -1,0 +1,149 @@
+<script>
+  import { onMount } from 'svelte';
+  
+  let portfolioSettings = {
+    stopLoss: 15,
+    takeProfit: 25,
+    panicMode: false,
+    autoRebalance: true
+  };
+  
+  let automationActive = true;
+</script>
+
+<div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Active Settings</h3>
+    <div class="flex items-center">
+      <span class="text-sm text-gray-500 dark:text-gray-400 mr-2">Automation</span>
+      <div class="relative inline-block w-10 mr-2 align-middle select-none">
+        <input
+          type="checkbox"
+          bind:checked={automationActive}
+          class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-gray-600 border-4 appearance-none cursor-pointer transition-all duration-300"
+        />
+        <label
+          class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-300"
+          class:bg-blue-500={automationActive}
+          class:bg-gray-300={!automationActive}
+        ></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <!-- Stop Loss -->
+    <div class="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+          <svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Stop Loss</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Limit downside risk</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <p class="text-lg font-bold text-red-600 dark:text-red-400">{portfolioSettings.stopLoss}%</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          {automationActive ? 'Active' : 'Inactive'}
+        </p>
+      </div>
+    </div>
+
+    <!-- Take Profit -->
+    <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+          <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Take Profit</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Secure gains</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <p class="text-lg font-bold text-green-600 dark:text-green-400">{portfolioSettings.takeProfit}%</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          {automationActive ? 'Active' : 'Inactive'}
+        </p>
+      </div>
+    </div>
+
+    <!-- Panic Mode -->
+    <div class="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-8 h-8 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+          <svg class="w-4 h-4 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Panic Mode</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Emergency conversion</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <p class="text-sm font-bold" class:text-yellow-600={!portfolioSettings.panicMode} class:text-red-600={portfolioSettings.panicMode}>
+          {portfolioSettings.panicMode ? 'ACTIVE' : 'Standby'}
+        </p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          To stablecoins
+        </p>
+      </div>
+    </div>
+
+    <!-- Auto Rebalance -->
+    <div class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+          <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm font-medium text-gray-900 dark:text-white">Auto Rebalance</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Maintain allocation</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <p class="text-sm font-bold" class:text-green-600={portfolioSettings.autoRebalance} class:text-gray-500={!portfolioSettings.autoRebalance}>
+          {portfolioSettings.autoRebalance ? 'Enabled' : 'Disabled'}
+        </p>
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+          Weekly
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Settings Link -->
+  <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+    <a 
+      href="/settings" 
+      class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+    >
+      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+      Adjust Settings
+    </a>
+  </div>
+</div>
+
+<style>
+  .toggle-checkbox:checked {
+    right: 0;
+    border-color: #3B82F6;
+  }
+  
+  .toggle-checkbox:not(:checked) {
+    right: 1rem;
+    border-color: #D1D5DB;
+  }
+</style>
