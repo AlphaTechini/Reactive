@@ -1,7 +1,9 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  console.log("🚀 Deploying PortfolioManager to Reactive Network...\n");
+  console.log("🚀 Deploying PortfolioManager to Reactive Testnet...\n");
+  console.log("🌐 Network:", network.name);
+  console.log("⛽ Using testnet tokens for gas-free testing\n");
 
   // Get the contract factory
   const PortfolioManager = await ethers.getContractFactory("PortfolioManager");
@@ -24,83 +26,83 @@ async function main() {
   console.log("✅ AutomationController deployed to:", await automation.getAddress());
   console.log("🔗 Automation tx:", automation.deploymentTransaction().hash);
 
-  // Define popular tokens for mainnet (you'll need to update these addresses)
+  // Define testnet mock tokens for percentage-based trading simulation
   const supportedTokens = [
-    // Major Cryptocurrencies
+    // Mock Major Cryptocurrencies (Testnet)
     {
-      name: "Wrapped Bitcoin",
-      symbol: "WBTC",
-      address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", // Ethereum mainnet WBTC
-      category: 3 // BTC
+      name: "Mock Bitcoin",
+      symbol: "mBTC",
+      address: "0x1111111111111111111111111111111111111111", // Mock testnet address
+      category: 3, // BTC
+      basePrice: 45000, // Starting price in USD
+      volatility: 0.05 // 5% daily volatility
     },
     {
-      name: "Ethereum",
-      symbol: "ETH", 
-      address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // WETH
-      category: 0 // ALTCOIN
+      name: "Mock Ethereum",
+      symbol: "mETH", 
+      address: "0x2222222222222222222222222222222222222222", // Mock testnet address
+      category: 0, // ALTCOIN
+      basePrice: 2800,
+      volatility: 0.04
     },
-    // Stablecoins
+    // Mock Stablecoins
     {
-      name: "USD Coin",
-      symbol: "USDC",
-      address: "0xA0b86a33E6441b8FadB9c2FF932293e3dD4ff8cE", // Replace with actual Reactive Network USDC
-      category: 2 // STABLECOIN
-    },
-    {
-      name: "Tether",
-      symbol: "USDT",
-      address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", // Replace with actual Reactive Network USDT
-      category: 2 // STABLECOIN
-    },
-    // Popular Altcoins
-    {
-      name: "Chainlink",
-      symbol: "LINK",
-      address: "0x514910771AF9Ca656af840dff83E8264EcF986CA", // Replace with actual addresses
-      category: 0 // ALTCOIN
+      name: "Mock USD Coin",
+      symbol: "mUSDC",
+      address: "0x3333333333333333333333333333333333333333", // Mock testnet address
+      category: 2, // STABLECOIN
+      basePrice: 1.00,
+      volatility: 0.001 // Very low volatility for stablecoin
     },
     {
-      name: "Uniswap",
-      symbol: "UNI",
-      address: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
-      category: 0 // ALTCOIN
+      name: "Mock Tether",
+      symbol: "mUSDT",
+      address: "0x4444444444444444444444444444444444444444", // Mock testnet address
+      category: 2, // STABLECOIN
+      basePrice: 1.00,
+      volatility: 0.001
+    },
+    // Mock Popular Altcoins
+    {
+      name: "Mock Chainlink",
+      symbol: "mLINK",
+      address: "0x5555555555555555555555555555555555555555", // Mock testnet address
+      category: 0, // ALTCOIN
+      basePrice: 15.50,
+      volatility: 0.06
     },
     {
-      name: "Polygon",
-      symbol: "MATIC",
-      address: "0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0",
-      category: 0 // ALTCOIN
+      name: "Mock Solana",
+      symbol: "mSOL",
+      address: "0x6666666666666666666666666666666666666666",
+      category: 0, // ALTCOIN
+      basePrice: 95.00,
+      volatility: 0.07
     },
     {
-      name: "Aave",
-      symbol: "AAVE",
-      address: "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
-      category: 0 // ALTCOIN
+      name: "Mock Cardano",
+      symbol: "mADA",
+      address: "0x7777777777777777777777777777777777777777",
+      category: 0, // ALTCOIN
+      basePrice: 0.45,
+      volatility: 0.05
+    },
+    // Mock Memecoins (higher volatility)
+    {
+      name: "Mock Dogecoin",
+      symbol: "mDOGE",
+      address: "0x8888888888888888888888888888888888888888",
+      category: 1, // MEMECOIN
+      basePrice: 0.08,
+      volatility: 0.12 // High volatility for memecoin
     },
     {
-      name: "Compound",
-      symbol: "COMP",
-      address: "0xc00e94Cb662C3520282E6f5717214004A7f26888",
-      category: 0 // ALTCOIN
-    },
-    {
-      name: "Maker",
-      symbol: "MKR",
-      address: "0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2",
-      category: 0 // ALTCOIN
-    },
-    // Popular Memecoins (add real addresses for Reactive Network)
-    {
-      name: "Dogecoin",
-      symbol: "DOGE",
-      address: "0x4206931337dc273a630d328dA6441786BfaD668f", // Placeholder - update with real address
-      category: 1 // MEMECOIN
-    },
-    {
-      name: "Shiba Inu", 
-      symbol: "SHIB",
-      address: "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", // Placeholder
-      category: 1 // MEMECOIN
+      name: "Mock Shiba Inu", 
+      symbol: "mSHIB",
+      address: "0x9999999999999999999999999999999999999999",
+      category: 1, // MEMECOIN
+      basePrice: 0.000012,
+      volatility: 0.15 // Very high volatility
     }
   ];
 
@@ -136,16 +138,23 @@ async function main() {
   console.log("Supported Tokens:", supportedTokensList.length);
 
   console.log("\n🔧 Next Steps:");
-  console.log("1. Verify the contract on the block explorer");
+  console.log("1. Verify the contract on Reactive testnet explorer");
   console.log("2. Update frontend with the contract address");
-  console.log("3. Add more tokens using addSupportedToken()");
-  console.log("4. Configure your MetaMask to interact with the contract");
+  console.log("3. Configure MetaMask for Reactive testnet (get free test tokens)");
+  console.log("4. Set up webhook endpoint for automated triggers");
+  console.log("5. Test percentage-based price movements");
 
-  console.log("\n💡 Contract Interaction:");
-  console.log("- Set stop loss: setStopLoss(uint256 percent)");
-  console.log("- Set take profit: setTakeProfit(uint256 percent)");
-  console.log("- Activate panic mode: activatePanicMode()");
-  console.log("- Rebalance portfolio: rebalancePortfolio(address[], uint256[])");
+  console.log("\n💡 Testnet Features:");
+  console.log("- Mock tokens with simulated price movements");
+  console.log("- Percentage-based trading (no real swaps)");
+  console.log("- Webhook-triggered contract reactions");
+  console.log("- Free testnet gas for all transactions");
+
+  console.log("\n🔗 Webhook Endpoints:");
+  console.log("- Price trigger: POST /api/trigger-price-action");
+  console.log("- Stop loss: POST /api/trigger-stop-loss");
+  console.log("- Take profit: POST /api/trigger-take-profit");
+  console.log("- Rebalance: POST /api/trigger-rebalance");
 
   // Save deployment info
   const deploymentInfo = {
