@@ -134,6 +134,50 @@ cd frontend
 npm run dev
 ```
 
+#### Switching Between Mock (Simulation) Mode and Real Network
+
+The dApp can operate in two modes:
+
+| Mode | USE_MOCK_TOKENS | Behavior |
+|------|-----------------|----------|
+| Mock / Simulation | `true` | Uses synthetic tokens & webhook price simulation. No real swaps. |
+| Real Network | `false` | Expects real token addresses; no simulated prices. |
+
+Environment variables impacting network:
+```
+VITE_REACTIVE_CHAIN_ID=5318008
+VITE_REACTIVE_CHAIN_NAME="Reactive Network"
+VITE_REACTIVE_SYMBOL=REACT
+VITE_REACTIVE_RPC=https://kopli-rpc.reactive.network
+VITE_REACTIVE_EXPLORER=https://kopli.reactscan.net
+USE_MOCK_TOKENS=true
+```
+
+To switch to real network mode:
+1. Set `USE_MOCK_TOKENS=false` (and `VITE_USE_MOCK_TOKENS=false` if referenced in frontend code).
+2. Provide real token addresses and run the token registration script.
+3. Restart both the deployment and frontend processes so Vite rebuilds with updated env.
+4. MetaMask will prompt you to approve adding / switching to the Reactive Network if not already configured.
+
+When in real mode the deploy script skips adding mock tokens; use the addTokens script or UI to register actual tokens.
+
+#### Runtime Mode Toggle (Simulation ↔ Live)
+The header includes a toggle that switches between Simulation and Live without rebuilding.
+
+| Runtime Mode | Data Source | Swaps | Chart Behavior | Price Fetch |
+|--------------|-------------|-------|----------------|------------|
+| Simulation | Mock webhook + synthetic candles | Mock (no on-chain) | Synthetic or Uniswap-derived candles; auto 15s last-candle refresh | Interval + synthetic generation |
+| Live | CoinGecko spot (5% threshold) | Placeholder (future real swap) | Sparse baseline candles updated on-demand / threshold | Manual button + threshold cache |
+
+Details:
+- Mode stored in `localStorage` (`reactiveAppMode`).
+- Overrides build-time `VITE_USE_MOCK_TOKENS` after first user interaction.
+- `secureContractService`: selects mock vs live logic; live path currently a placeholder emitting a simulated event.
+- `TradeModal`: fetches spot price only when opened or user clicks Refresh; 5% change threshold logic in `coingeckoPriceService`.
+- `PriceChart`: Simulation mode uses synthetic/uniswap feed; Live mode shows flat candle scaffolding with spot overlays and manual refresh.
+
+Planned (optional future work): historical real candle aggregation, real swap routing integration, richer oracle redundancy (Chainlink / TWAP fallback).
+
 **Scripts:**
 ```bash
 # Get network information
@@ -155,8 +199,21 @@ Requirements:
 - For non-stablecoins an existing Uniswap V3 pool (token/USDC) at the specified `poolFee` must exist or `addToken` reverts.
 - `poolFee` 0 is used for USDC itself.
 
-### Wallet Authentication (Signature Session)
-After wallet connection the dApp prompts a message signature. A 30‑minute session (address, signature, timestamp) is stored in `localStorage` (`reactiveAuthSession`). Disconnecting clears it.
+### Wallet Authentication (Signature Session & Detection)
+On load the app detects whether MetaMask is installed:
+
+1. If MetaMask is present and the user previously authorized the site, it silently restores state (and will re-auth on interaction if session expired).
+2. If not installed, the UI shows an Install MetaMask button (desktop: metamask.io/download, mobile: store link).
+3. On Connect it requests accounts (`eth_requestAccounts`), checks/requests network switch to Reactive, then prompts a message signature for a 30‑minute auth session.
+
+Stored in `localStorage`:
+`reactiveAuthSession` – { address, signature, timestamp }
+`reactiveWalletAddress` – last connected address (for quick UI prefill)
+
+Security notes:
+- Only a human-readable message is signed (no transactions / gas).
+- Session auto-invalidates after 30 minutes; reconnect triggers re-sign.
+- Using a different account triggers a fresh authentication flow.
 
 ### Secure On-Chain Swaps
 All swaps execute via `EnhancedPortfolioManager.executeSwap`. Frontend helper `frontend/src/lib/uniswap.js` calls the contract—no client pathfinding or direct router invocation.

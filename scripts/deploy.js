@@ -1,9 +1,12 @@
-import { ethers } from "hardhat";
+import hardhat from "hardhat";
+const { ethers, network } = hardhat;
+import fs from 'fs';
 
 async function main() {
-  console.log("🚀 Deploying PortfolioManager to Reactive Testnet...\n");
+  const useMock = process.env.USE_MOCK_TOKENS === 'true';
+  console.log(`🚀 Deploying PortfolioManager to ${network.name}...\n`);
   console.log("🌐 Network:", network.name);
-  console.log("⛽ Using testnet tokens for gas-free testing\n");
+  console.log(useMock ? "⛽ Using mock tokens for simulation\n" : "💼 Using real token addresses (no mock simulation)\n");
 
   // Get the contract factory
   const PortfolioManager = await ethers.getContractFactory("PortfolioManager");
@@ -16,18 +19,8 @@ async function main() {
   console.log("✅ PortfolioManager deployed to:", await portfolioManager.getAddress());
   console.log("🔗 Transaction hash:", portfolioManager.deploymentTransaction().hash);
 
-  // Deploy AutomationController for RCS trigger strategies
-  console.log("\n🤖 Deploying AutomationController...");
-  const Automation = await ethers.getContractFactory("AutomationController");
-  // Use USDC (or stable) from supported tokens list (3rd in provided sample) as stable quote token
-  const usdcAddress = supportedTokens.find(t => t.symbol === 'USDC')?.address || supportedTokens[2].address;
-  const automation = await Automation.deploy(await portfolioManager.getAddress(), usdcAddress);
-  await automation.waitForDeployment();
-  console.log("✅ AutomationController deployed to:", await automation.getAddress());
-  console.log("🔗 Automation tx:", automation.deploymentTransaction().hash);
-
-  // Define testnet mock tokens for percentage-based trading simulation
-  const supportedTokens = [
+  // Define mock tokens for percentage-based trading simulation (only if useMock)
+  const mockTokens = [
     // Mock Major Cryptocurrencies (Testnet)
     {
       name: "Mock Bitcoin",
@@ -106,11 +99,25 @@ async function main() {
     }
   ];
 
+
+
+  // Deploy AutomationController for RCS trigger strategies
+  console.log("\n🤖 Deploying AutomationController...");
+  const Automation = await ethers.getContractFactory("AutomationController");
+  // Use USDC (or stable) from supported tokens list (3rd in provided sample) as stable quote token
+  const usdcAddress = supportedTokens.find(t => t.symbol === 'USDC')?.address || supportedTokens[2].address;
+  const automation = await Automation.deploy(await portfolioManager.getAddress(), usdcAddress);
+  await automation.waitForDeployment();
+  console.log("✅ AutomationController deployed to:", await automation.getAddress());
+  console.log("🔗 Automation tx:", automation.deploymentTransaction().hash);
+
+
   console.log("\n📝 Adding supported tokens...");
 
   // Note: In production, you should add tokens one by one and handle errors
   // For demo purposes, we'll add a few sample tokens
-  const sampleTokens = supportedTokens.slice(0, 5); // Add first 5 tokens
+  const supportedTokens = mockTokens; // alias for legacy references
+  const sampleTokens = useMock ? mockTokens.slice(0, 5) : [];
 
   for (const token of sampleTokens) {
     try {
@@ -130,7 +137,7 @@ async function main() {
   console.log("\n📊 Deployment Summary:");
   console.log("=".repeat(50));
   console.log("Contract:", "PortfolioManager");
-  console.log("Address:", portfolioManager.address);
+  console.log("Address:", await portfolioManager.getAddress());
   console.log("Network:", network.name);
   console.log("Owner:", await portfolioManager.owner());
   
@@ -138,17 +145,29 @@ async function main() {
   console.log("Supported Tokens:", supportedTokensList.length);
 
   console.log("\n🔧 Next Steps:");
-  console.log("1. Verify the contract on Reactive testnet explorer");
-  console.log("2. Update frontend with the contract address");
-  console.log("3. Configure MetaMask for Reactive testnet (get free test tokens)");
-  console.log("4. Set up webhook endpoint for automated triggers");
-  console.log("5. Test percentage-based price movements");
+  if (useMock) {
+    console.log("1. Verify the contract on explorer (if needed)");
+    console.log("2. Update frontend with the contract address");
+    console.log("3. (Optional) Adjust mock volatility settings");
+    console.log("4. Set up webhook endpoint for automated triggers");
+    console.log("5. Test percentage-based price movements");
+  } else {
+    console.log("1. Verify the contract on explorer");
+    console.log("2. Add real supported tokens via addTokens script or UI");
+    console.log("3. Configure automation strategies");
+    console.log("4. Monitor events for strategy executions");
+  }
 
   console.log("\n💡 Testnet Features:");
-  console.log("- Mock tokens with simulated price movements");
-  console.log("- Percentage-based trading (no real swaps)");
-  console.log("- Webhook-triggered contract reactions");
-  console.log("- Free testnet gas for all transactions");
+  if (useMock) {
+    console.log("- Mock tokens with simulated price movements");
+    console.log("- Percentage-based trading (no real swaps)");
+    console.log("- Webhook-triggered contract reactions");
+    console.log("- Free testnet gas for all transactions");
+  } else {
+    console.log("- Real token mode (no mock simulation)");
+    console.log("- Requires valid token addresses and liquidity environment");
+  }
 
   console.log("\n🔗 Webhook Endpoints:");
   console.log("- Price trigger: POST /api/trigger-price-action");
@@ -175,11 +194,10 @@ async function main() {
   };
 
   console.log("\n💾 Saving deployment info to deployments.json...");
-  const fs = require("fs");
-  const deployments = fs.existsSync("deployments.json") 
-    ? JSON.parse(fs.readFileSync("deployments.json")) 
+  const deployments = fs.existsSync("deployments.json")
+    ? JSON.parse(fs.readFileSync("deployments.json"))
     : {};
-  
+
   deployments[network.name] = deploymentInfo;
   fs.writeFileSync("deployments.json", JSON.stringify(deployments, null, 2));
   

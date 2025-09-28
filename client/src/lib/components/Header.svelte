@@ -2,6 +2,10 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { walletService, walletAddress, walletBalance, walletConnected } from '$lib/stores/wallet.js';
+  import ModeBadge from './ModeBadge.svelte';
+  import { appMode } from '$lib/stores/appMode.js';
+  $: simulationMode = $appMode === 'simulation';
+  function toggleMode(){ appMode.set(simulationMode ? 'live' : 'simulation'); }
   import ThemeToggle from './ThemeToggle.svelte';
   export let toggleSidebar;
   $: shortAddress = walletService.formatAddress($walletAddress);
@@ -30,6 +34,12 @@
         <a href="/events" on:click|preventDefault={go('/events')} class="nav-link { $page.route.id === '/events' ? 'nav-link-active' : '' }">Events</a>
       </nav>
       <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <ModeBadge simulation={simulationMode} />
+          <button on:click={toggleMode} class="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition" aria-label="Toggle Mode">
+            {simulationMode ? 'Go Live' : 'Simulate'}
+          </button>
+        </div>
         <ThemeToggle />
         {#if $walletConnected}
           <div class="hidden sm:flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400"><div class="w-2 h-2 bg-green-500 rounded-full"></div><span>{formattedBalance} REACT</span></div>

@@ -1,5 +1,6 @@
 // Webhook service for triggering contract reactions based on price movements
-import { ethers } from "hardhat";
+import hardhat from "hardhat";
+const { ethers, network } = hardhat;
 import fs from "fs";
 import express from "express";
 import cors from "cors";

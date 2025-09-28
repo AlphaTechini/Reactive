@@ -1,6 +1,7 @@
 // Migrated secureContractService.js
 import { ethers } from 'ethers';
 import { get } from 'svelte/store';
+import { appMode } from '$lib/stores/appMode.js';
 import { walletService } from '$lib/stores/wallet.js';
 
 const ENHANCED_PORTFOLIO_MANAGER_ABI = [
@@ -28,6 +29,14 @@ const ENHANCED_PORTFOLIO_MANAGER_ABI = [
   "event PortfolioRebalanced(address indexed user, address[] tokens, uint256[] allocations)",
   "event TokenSwapped(address indexed user, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)",
   "event PriceUpdated(address indexed token, uint256 newPrice)"
+];
+
+// Minimal ERC20 ABI fragment for allowance/approval & metadata
+const ERC20_ABI = [
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 value) returns (bool)'
 ];
 
 // Will be loaded from deployments.json or env variable
@@ -91,66 +100,96 @@ class SecureContractService {
   // Mock trading - simulate percentage-based trades without real swaps
   async executeSwap(tokenInAddress, tokenOutAddress, amountIn, slippagePercent = 1) {
     if (!this.contract) await this.initialize();
-    
-    try {
-      console.log(`🔄 Mock swap: ${amountIn} tokens from ${tokenInAddress} to ${tokenOutAddress}`);
-      
-      // Get mock prices from webhook service
-      const prices = await this.getMockPrices();
-      const tokenInPrice = prices[tokenInAddress]?.current || 1;
-      const tokenOutPrice = prices[tokenOutAddress]?.current || 1;
-      
-      // Calculate expected output with slippage
-      const expectedOut = (amountIn * tokenInPrice) / tokenOutPrice;
-      const actualOut = expectedOut * (1 - slippagePercent / 100);
-      
-      // Simulate transaction (no real swap)
-      const mockTx = {
-        hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-        from: await this.signer.getAddress(),
-        to: CONTRACT_ADDRESS,
-        value: "0",
-        gasUsed: ethers.parseUnits("21000", "wei"),
-        status: 1,
-        wait: async () => ({ 
-          transactionHash: this.hash,
-          gasUsed: ethers.parseUnits("21000", "wei"),
-          status: 1
-        })
-      };
-      
-      console.log(`✅ Mock swap completed: ${actualOut.toFixed(6)} tokens received`);
-      
-      // Emit mock event
-      this.emitMockSwapEvent(tokenInAddress, tokenOutAddress, amountIn, actualOut);
-      
-      return mockTx;
-      
-    } catch (e) {
-      console.error('Failed to execute mock swap:', e);
-      throw e;
+    const mode = get(appMode);
+    if (mode === 'live') {
+      // Real live-mode implementation
+      try {
+        if (!amountIn) throw new Error('Amount is required');
+        // Normalize user input (can be string/number)
+        const tokenInMeta = this.getTokenByAddress(tokenInAddress);
+        const tokenOutMeta = this.getTokenByAddress(tokenOutAddress);
+        if (!tokenInMeta || !tokenOutMeta) throw new Error('Unknown token selection');
+
+        // Parse to raw units respecting decimals
+        const rawAmountIn = typeof amountIn === 'string' ? ethers.parseUnits(amountIn, tokenInMeta.decimals) : ethers.parseUnits(String(amountIn), tokenInMeta.decimals);
+
+        // Fetch on-chain stored prices (18 decimals) for rough quote
+        let priceIn, priceOut;
+        try { priceIn = await this.contract.getTokenPrice(tokenInAddress); } catch { priceIn = 0n; }
+        try { priceOut = await this.contract.getTokenPrice(tokenOutAddress); } catch { priceOut = 0n; }
+
+        const quote = this._estimateMinAmountOut(rawAmountIn, priceIn, priceOut, tokenInMeta.decimals, tokenOutMeta.decimals, slippagePercent);
+        const { expectedOut, minAmountOut } = quote;
+
+        // Ensure allowance
+        const owner = await this.signer.getAddress();
+        const erc20 = new ethers.Contract(tokenInAddress, ERC20_ABI, this.signer);
+        const allowance = await erc20.allowance(owner, CONTRACT_ADDRESS);
+        if (allowance < rawAmountIn) {
+          console.log('🔐 Approving token spending...', { needed: rawAmountIn.toString() });
+          const approveTx = await erc20.approve(CONTRACT_ADDRESS, rawAmountIn);
+          await approveTx.wait();
+          console.log('✅ Approval confirmed');
+        }
+
+        // Build params struct
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 5); // 5 minutes
+        const params = {
+          tokenIn: tokenInAddress,
+          tokenOut: tokenOutAddress,
+            amountIn: rawAmountIn,
+            minAmountOut: minAmountOut,
+            deadline: deadline
+        };
+
+        console.log('🚀 Executing live swap', {
+          tokenIn: tokenInMeta.symbol,
+          tokenOut: tokenOutMeta.symbol,
+          amountIn: amountIn.toString(),
+          rawAmountIn: rawAmountIn.toString(),
+          expectedOut: expectedOut.toString(),
+          minAmountOut: minAmountOut.toString(),
+          slippagePercent
+        });
+
+        const tx = await this.contract.executeSwap(params);
+        const receipt = await tx.wait();
+        console.log('✅ Swap transaction mined', receipt.hash || tx.hash);
+        return receipt;
+      } catch (e) {
+        console.error('Live swap failed:', e);
+        throw e;
+      }
+    } else {
+      // Simulation mode (existing mock logic)
+      try {
+        console.log(`🔄 Mock swap: ${amountIn} tokens from ${tokenInAddress} to ${tokenOutAddress}`);
+        const prices = await this.getMockPrices();
+        const tokenInPrice = prices[tokenInAddress]?.current || 1;
+        const tokenOutPrice = prices[tokenOutAddress]?.current || 1;
+        const expectedOut = (amountIn * tokenInPrice) / tokenOutPrice;
+        const actualOut = expectedOut * (1 - slippagePercent / 100);
+        const mockTx = { hash: `0x${Math.random().toString(16).substr(2, 64)}`, from: await this.signer.getAddress(), to: CONTRACT_ADDRESS, value: "0", gasUsed: ethers.parseUnits("21000", "wei"), status: 1, wait: async () => ({ transactionHash: this.hash, gasUsed: ethers.parseUnits("21000", "wei"), status: 1 }) };
+        console.log(`✅ Mock swap completed: ${actualOut.toFixed(6)} tokens received`);
+        this.emitMockSwapEvent(tokenInAddress, tokenOutAddress, amountIn, actualOut);
+        return mockTx;
+      } catch (e) { console.error('Failed to execute mock swap:', e); throw e; }
     }
   }
 
   // Get mock token price from webhook service
   async getTokenPrice(tokenAddress) {
+    const mode = get(appMode);
     try {
-      const prices = await this.getMockPrices();
-      const priceData = prices[tokenAddress];
-      
-      if (priceData) {
-        return priceData.current;
+      if (mode === 'simulation') {
+        const prices = await this.getMockPrices();
+        const priceData = prices[tokenAddress];
+        if (priceData) return priceData.current;
       }
-      
-      // Fallback to contract if webhook unavailable
       if (!this.contract) await this.initialize();
       const price = await this.contract.getTokenPrice(tokenAddress);
       return parseFloat(ethers.formatEther(price));
-      
-    } catch (e) {
-      console.error('Failed to get token price:', e);
-      return 0;
-    }
+    } catch (e) { console.error('Failed to get token price:', e); return 0; }
   }
   
   // Fetch mock prices from webhook service
@@ -237,6 +276,24 @@ class SecureContractService {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('mockSwap', { detail: mockEvent }));
     }
+  }
+
+  // Internal helper: derive expected & min amountOut using stored prices (both 18-decimals precision)
+  _estimateMinAmountOut(rawAmountIn, priceIn, priceOut, decimalsIn, decimalsOut, slippagePercent) {
+    // If prices unavailable, fallback to minAmountOut = 1 to avoid revert but warn
+    if (!priceIn || !priceOut || priceIn === 0n || priceOut === 0n) {
+      console.warn('⚠️ Price data missing; using minimal minAmountOut=1');
+      return { expectedOut: 0n, minAmountOut: 1n };
+    }
+    // expectedOutRaw = amountIn * priceIn * 10^{decOut} / (priceOut * 10^{decIn})
+    const ten = 10n;
+    const decAdjFactor = ten ** BigInt(decimalsOut);
+    const decDivisor = ten ** BigInt(decimalsIn);
+    const expectedOut = (rawAmountIn * priceIn * decAdjFactor) / (priceOut * decDivisor);
+    // Apply slippage
+    const slipFactor = BigInt(Math.max(0, 100 - slippagePercent)); // percent integer
+    const minAmountOut = (expectedOut * slipFactor) / 100n;
+    return { expectedOut, minAmountOut: minAmountOut > 0n ? minAmountOut : 1n };
   }
   
   formatContractError(error) { if (error?.reason) return error.reason; if (error?.data?.message) return error.data.message; if (error?.message) { const msg = error.message; if (msg.includes('user rejected transaction')) return 'Transaction was rejected by user'; if (msg.includes('insufficient funds')) return 'Insufficient funds for transaction'; if (msg.includes('gas')) return 'Transaction failed due to gas issues'; return msg; } return 'Unknown contract error occurred'; }

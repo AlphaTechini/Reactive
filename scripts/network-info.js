@@ -1,4 +1,5 @@
-import { ethers } from "hardhat";
+import hardhat from "hardhat";
+const { ethers, network } = hardhat;
 
 async function main() {
   console.log("🌐 Reactive Network Information\n");
