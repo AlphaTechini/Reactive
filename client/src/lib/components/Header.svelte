@@ -4,8 +4,25 @@
   import { walletService, walletAddress, walletBalance, walletConnected } from '$lib/stores/wallet.js';
   import ModeBadge from './ModeBadge.svelte';
   import { appMode } from '$lib/stores/appMode.js';
+  import { enhancedPriceService, priceLoadingStore, lastUpdatedStore } from '$lib/priceService.js';
+  import { notify } from '$lib/notify.js';
+  
   $: simulationMode = $appMode === 'simulation';
-  function toggleMode(){ appMode.set(simulationMode ? 'live' : 'simulation'); }
+  
+  function toggleMode(){
+    appMode.set(simulationMode ? 'live' : 'simulation');
+    if (typeof window !== 'undefined') window.location.reload();
+  }
+  
+  async function refreshPrices() {
+    try {
+      await enhancedPriceService.refreshAllPrices();
+      notify.success('Prices refreshed successfully');
+    } catch (error) {
+      notify.error('Failed to refresh prices');
+    }
+  }
+  
   import ThemeToggle from './ThemeToggle.svelte';
   export let toggleSidebar;
   $: shortAddress = walletService.formatAddress($walletAddress);
@@ -40,6 +57,29 @@
             {simulationMode ? 'Go Live' : 'Simulate'}
           </button>
         </div>
+        
+        <!-- Price Refresh Button -->
+        <div class="flex items-center gap-2">
+          <button on:click={refreshPrices} disabled={$priceLoadingStore} class="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1" aria-label="Refresh Prices">
+            {#if $priceLoadingStore}
+              <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            {:else}
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            {/if}
+            <span class="hidden sm:inline">{$priceLoadingStore ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+          {#if $lastUpdatedStore}
+            <span class="hidden md:inline text-xs text-gray-500 dark:text-gray-400">
+              Updated: {new Date($lastUpdatedStore).toLocaleTimeString()}
+            </span>
+          {/if}
+        </div>
+        
         <ThemeToggle />
         {#if $walletConnected}
           <div class="hidden sm:flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400"><div class="w-2 h-2 bg-green-500 rounded-full"></div><span>{formattedBalance} REACT</span></div>

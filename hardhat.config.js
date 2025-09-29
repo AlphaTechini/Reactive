@@ -2,7 +2,7 @@ import "@nomicfoundation/hardhat-toolbox";
 import { config } from "dotenv";
 config();
 
-const REACTIVE_NETWORK_RPC = process.env.REACTIVE_NETWORK_RPC || "https://kopli-rpc.reactive.network";
+const REACTIVE_NETWORK_RPC = process.env.REACTIVE_NETWORK_RPC || "https://mainnet-rpc.rnk.dev/";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 
@@ -24,13 +24,13 @@ export default {
     reactive: {
       url: REACTIVE_NETWORK_RPC,
       accounts: PRIVATE_KEY !== "" ? [PRIVATE_KEY] : [],
-      chainId: 5318008, // Reactive Network Chain ID
+      chainId: 1597, // Reactive Mainnet Chain ID
       gasPrice: 1000000000, // 1 gwei
     },
     reactiveTestnet: {
-      url: "https://kopli-rpc.reactive.network",
+      url: "https://mainnet-rpc.rnk.dev/",
       accounts: PRIVATE_KEY !== "" ? [PRIVATE_KEY] : [],
-      chainId: 5318008,
+      chainId: 1597,
       gasPrice: 1000000000,
     }
   },
@@ -39,10 +39,10 @@ export default {
     customChains: [
       {
         network: "reactive",
-        chainId: 5318008,
+        chainId: 1597,
         urls: {
-          apiURL: "https://kopli.reactscan.net/api",
-          browserURL: "https://kopli.reactscan.net"
+          apiURL: "https://reactscan.net/api",
+          browserURL: "https://reactscan.net"
         }
       }
     ]

@@ -55,8 +55,55 @@
   function timeframeMapper(tf){ if(tf==='1h') return '5m'; if(tf==='1d') return '1h'; if(tf==='7d') return '4h'; if(tf==='30d') return '1d'; return '1h'; }
   function generateSyntheticCandles(){ const mapped=timeframeMapper(timeframe); const cfg=TIMEFRAMES[mapped]; const now=Date.now(); const base=getBasePriceForToken(selectedToken?.symbol); const candles=[]; let last=base; for(let i=cfg.candles;i>0;i--){ const t=now - i*cfg.seconds*1000; const drift=(Math.random()-0.5)*0.02; const open=last; const close=open*(1+drift); const high=Math.max(open,close)*(1+Math.random()*0.003); const low=Math.min(open,close)*(1-Math.random()*0.003); candles.push({ time:t, open, high, low, close, volumeUSD:Math.random()*500 }); last=close; } return candles; }
   function getBasePriceForToken(symbol){ const basePrices={ ETH:2500, WBTC:45000, LINK:12.5, UNI:8.2, USDC:1, USDT:1 }; return basePrices[symbol]||100; }
-  function createChart(){ if(!plotly||!chartContainer||!candleData.length) return; const x=candleData.map(c=>new Date(c.time)); const open=candleData.map(c=>c.open); const high=candleData.map(c=>c.high); const low=candleData.map(c=>c.low); const close=candleData.map(c=>c.close); const increasingColor='#10B981'; const decreasingColor='#EF4444'; const candleTrace={ x, open, high, low, close, type:'candlestick', name:selectedToken?.symbol||'Price', increasing:{ line:{ color:increasingColor } }, decreasing:{ line:{ color:decreasingColor } }, hovertemplate:'<b>%{fullData.name}</b><br>Open: $%{open:.4f}<br>High: $%{high:.4f}<br>Low: $%{low:.4f}<br>Close: $%{close:.4f}<extra></extra>'}; const sim = $appMode==='simulation'; const layoutConfig={ title:{ text:`${selectedToken?.symbol||'Token'} (${timeframe}) ${sim? '(Sim)': '(Live)'}`, font:{ size:15, color:'#374151'}}, xaxis:{ title:'Time', showgrid:true, gridcolor:'rgba(156,163,175,0.2)', type:'date'}, yaxis:{ title:'Price (USD)', showgrid:true, gridcolor:'rgba(156,163,175,0.2)', tickprefix:'$'}, annotations: sim? [{ text:'Simulation (mock / synthetic data)', x:0, xref:'paper', y:1.1, yref:'paper', showarrow:false, font:{ size:11, color:'#6B7280'} }]:[], margin:{ t:40, r:20, b:40, l:60}, plot_bgcolor:'rgba(0,0,0,0)', paper_bgcolor:'rgba(0,0,0,0)', font:{ family:'Inter, sans-serif', size:12, color:'#6B7280'}, showlegend:false, dragmode:'pan'}; const config={ responsive:true, displayModeBar:true, scrollZoom:true }; plotly.newPlot(chartContainer,[candleTrace],layoutConfig,config); }
-  function updateChart(){ if(!plotly||!chartContainer||!candleData.length){ createChart(); return;} const x=candleData.map(c=>new Date(c.time)); const open=candleData.map(c=>c.open); const high=candleData.map(c=>c.high); const low=candleData.map(c=>c.low); const close=candleData.map(c=>c.close); plotly.restyle(chartContainer,{ x:[x], open:[open], high:[high], low:[low], close:[close] },[0]); plotly.relayout(chartContainer,{ 'title.text': `${selectedToken?.symbol||'Token'} (${timeframe}) ${$appMode==='simulation' ? '(Sim)' : '(Live)'}` }); }
+  function createChart(){
+    try {
+      if(!plotly||!chartContainer||!candleData || candleData.length === 0) return;
+      const x=candleData.map(c=>new Date(c.time));
+      const open=candleData.map(c=>c.open);
+      const high=candleData.map(c=>c.high);
+      const low=candleData.map(c=>c.low);
+      const close=candleData.map(c=>c.close);
+      // if any essential array is missing, bail out
+      if(!x.length || !open.length || !high.length || !low.length || !close.length) return;
+      const increasingColor='#10B981'; const decreasingColor='#EF4444';
+      const candleTrace={ x, open, high, low, close, type:'candlestick', name:selectedToken?.symbol||'Price', increasing:{ line:{ color:increasingColor } }, decreasing:{ line:{ color:decreasingColor } }, hovertemplate:'<b>%{fullData.name}</b><br>Open: $%{open:.4f}<br>High: $%{high:.4f}<br>Low: $%{low:.4f}<br>Close: $%{close:.4f}<extra></extra>' };
+      const sim = $appMode==='simulation';
+      const layoutConfig={ title:{ text:`${selectedToken?.symbol||'Token'} (${timeframe}) ${sim? '(Sim)': '(Live)'}`, font:{ size:15, color:'#374151'}}, xaxis:{ title:'Time', showgrid:true, gridcolor:'rgba(156,163,175,0.2)', type:'date'}, yaxis:{ title:'Price (USD)', showgrid:true, gridcolor:'rgba(156,163,175,0.2)', tickprefix:'$'}, annotations: sim? [{ text:'Simulation (mock / synthetic data)', x:0, xref:'paper', y:1.1, yref:'paper', showarrow:false, font:{ size:11, color:'#6B7280'} }]:[], margin:{ t:40, r:20, b:40, l:60}, plot_bgcolor:'rgba(0,0,0,0)', paper_bgcolor:'rgba(0,0,0,0)', font:{ family:'Inter, sans-serif', size:12, color:'#6B7280'}, showlegend:false, dragmode:'pan'};
+      const config={ responsive:true, displayModeBar:true, scrollZoom:true };
+      plotly.newPlot(chartContainer,[candleTrace],layoutConfig,config);
+    } catch (e) {
+      console.error('Failed to create chart:', e);
+    }
+  }
+
+  function updateChart(){
+    try {
+      if(!plotly||!chartContainer||!candleData || candleData.length === 0){ createChart(); return; }
+      const x=candleData.map(c=>new Date(c.time));
+      const open=candleData.map(c=>c.open);
+      const high=candleData.map(c=>c.high);
+      const low=candleData.map(c=>c.low);
+      const close=candleData.map(c=>c.close);
+      // Ensure arrays are defined and have same length before restyle
+      if(!x || !open || !high || !low || !close) { createChart(); return; }
+      const traceIndex = 0;
+      // Only call restyle if trace exists
+      if(plotly.getTrace && typeof plotly.getTrace === 'function'){
+        try {
+          const existing = plotly.getTrace(chartContainer, traceIndex);
+          if (!existing) { createChart(); return; }
+        } catch(e) {
+          // Some plotly builds may not expose getTrace; fallback to try restyle safely
+        }
+      }
+      plotly.restyle(chartContainer,{ x:[x], open:[open], high:[high], low:[low], close:[close] },[traceIndex]);
+      plotly.relayout(chartContainer,{ 'title.text': `${selectedToken?.symbol||'Token'} (${timeframe}) ${$appMode==='simulation' ? '(Sim)' : '(Live)'}` });
+    } catch (e) {
+      console.error('Failed to update chart:', e);
+      // try to recreate chart as fallback
+      try { createChart(); } catch(err){}
+    }
+  }
   // Load price history from webhook service for mock trading
   async function loadPriceHistory() {
     if (!selectedToken?.address) return;

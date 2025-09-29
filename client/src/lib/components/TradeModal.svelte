@@ -4,11 +4,13 @@
   import { walletStore } from '$lib/stores/wallet.js';
   import { executeSwap } from '$lib/uniswap.js';
   import { secureContractService } from '$lib/secureContractService.js';
+  import { INITIAL_TOKEN_LIST, REACT_TOKEN_ADDRESS } from '$lib/config/network.js';
   import { fetchPriceIfChanged, getCachedPrice } from '$lib/priceSources/coingeckoPriceService.js';
   const dispatch = createEventDispatcher();
   export let isOpen=false; export let defaultTokenIn=null; export let defaultTokenOut=null;
   import { appMode } from '$lib/stores/appMode.js';
   let tokenIn = defaultTokenIn || ''; let tokenOut = defaultTokenOut || ''; let amount=''; let isProcessing=false; let error=null; let tokens=[];
+  let tokenInBalance = null;
   let phase = null; // 'approving' | 'swapping' for live mode UX
   let latestPrice = null; let priceError=null; let fetchingPrice=false;
   let expectedOutDisplay = null; let minOutDisplay = null; let mode='simulation';
@@ -17,9 +19,15 @@
     try {
       await secureContractService.initialize();
       tokens = secureContractService.getSupportedTokens();
-      if(!tokenIn && tokens.length) tokenIn = tokens[0].address;
-      if(!tokenOut && tokens.length>1) tokenOut = tokens[1].address;
-    } catch(e){ console.error('Failed to load tokens', e); }
+    } catch(e){
+      console.warn('Falling back to static token list, contract token discovery failed:', e.message);
+      tokens = INITIAL_TOKEN_LIST.map(t=> ({...t}));
+    }
+    if(!tokens.length){
+      tokens = INITIAL_TOKEN_LIST.map(t=> ({...t}));
+    }
+    if(!tokenIn && tokens.length) tokenIn = tokens[0].address;
+    if(!tokenOut && tokens.length>1) tokenOut = tokens.find(t=> t.address !== tokenIn)?.address || tokens[0].address;
   }
   async function fetchOnDemandPrice(){
     if(!isOpen) return; // only when modal open
@@ -35,12 +43,28 @@
   }
   $: isOpen && loadTokens();
   $: isOpen && tokens.length && fetchOnDemandPrice();
+  
+  // ensure tokens is a proper array of {address, symbol, decimals}
+  $: if (tokens && tokens.length) {
+    tokens = tokens.map(t => ({ address: t.address || t, symbol: t.symbol || t.symbol || 'TOKEN', decimals: t.decimals || 18 }));
+  }
   async function submit(){
     isProcessing=true; error=null; phase=null; expectedOutDisplay=null; minOutDisplay=null;
     try {
       const wallet = get(walletStore);
       if(!wallet.isConnected) throw new Error('Please connect your wallet');
       if(!amount || Number(amount)<=0) throw new Error('Enter a valid amount');
+      if (!tokens || tokens.length === 0) throw new Error('Token list not loaded');
+      // Check tokenIn balance
+      try {
+        const provider = wallet.provider || wallet.rpcProvider;
+        const signer = wallet.provider ? await wallet.provider.getSigner() : null;
+        const erc = new (await import('ethers')).Contract(tokenIn, [ 'function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)' ], signer || provider);
+        const dec = (await erc.decimals?.()) || 18;
+        const raw = await erc.balanceOf(await signer.getAddress());
+        tokenInBalance = Number((await import('ethers')).formatUnits(raw, dec));
+        if (tokenInBalance < Number(amount)) throw new Error('Insufficient token balance');
+      } catch(e) { console.warn('Balance check failed', e); }
       await fetchOnDemandPrice();
       if(mode==='live') phase='approving';
       const txOrReceipt = await executeSwap(tokenIn, tokenOut, amount, 1);

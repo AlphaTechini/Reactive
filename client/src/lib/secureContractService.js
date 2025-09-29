@@ -3,6 +3,8 @@ import { ethers } from 'ethers';
 import { get } from 'svelte/store';
 import { appMode } from '$lib/stores/appMode.js';
 import { walletService } from '$lib/stores/wallet.js';
+import { rpcProvider } from '$lib/stores/wallet.js';
+import { SWAP_ROUTER_ADDRESS } from '$lib/config/network.js';
 
 const ENHANCED_PORTFOLIO_MANAGER_ABI = [
   "function setStopLoss(uint256 percentage) external",
@@ -56,13 +58,26 @@ class SecureContractService {
   async initialize() {
     try {
       const wallet = get(walletService.store);
-      if (!wallet || !wallet.isConnected || !wallet.provider) {
-        throw new Error('Wallet not connected');
+      // If wallet is connected and provides an injected provider, use it for read-write
+      if (wallet && wallet.isConnected && wallet.provider) {
+        try {
+          this.provider = new ethers.BrowserProvider(wallet.provider);
+          this.signer = this.provider.getSigner();
+          this.contract = new ethers.Contract(CONTRACT_ADDRESS, ENHANCED_PORTFOLIO_MANAGER_ABI, this.signer);
+        } catch (e) {
+          console.warn('Injected provider invalid for BrowserProvider, falling back to read-only RPC:', e);
+        }
       }
 
-      this.provider = new ethers.BrowserProvider(wallet.provider);
-      this.signer = this.provider.getSigner();
-      this.contract = new ethers.Contract(CONTRACT_ADDRESS, ENHANCED_PORTFOLIO_MANAGER_ABI, this.signer);
+      // If no interactive provider available, fall back to read-only RPC provider
+      if (!this.contract) {
+        let rpcVal = null;
+        rpcProvider.subscribe(v => rpcVal = v)();
+        if (!rpcVal) throw new Error('No available RPC provider for secure contract service');
+        this.provider = rpcVal;
+        this.signer = null;
+        this.contract = new ethers.Contract(CONTRACT_ADDRESS, ENHANCED_PORTFOLIO_MANAGER_ABI, this.provider);
+      }
       await this.loadSupportedTokens();
       return true;
     } catch (error) {
@@ -121,28 +136,69 @@ class SecureContractService {
         const quote = this._estimateMinAmountOut(rawAmountIn, priceIn, priceOut, tokenInMeta.decimals, tokenOutMeta.decimals, slippagePercent);
         const { expectedOut, minAmountOut } = quote;
 
-        // Ensure allowance
+        // Try to use a router if configured (Uniswap-like). Otherwise fall back to contract.executeSwap
         const owner = await this.signer.getAddress();
         const erc20 = new ethers.Contract(tokenInAddress, ERC20_ABI, this.signer);
-        const allowance = await erc20.allowance(owner, CONTRACT_ADDRESS);
-        if (allowance < rawAmountIn) {
-          console.log('🔐 Approving token spending...', { needed: rawAmountIn.toString() });
-          const approveTx = await erc20.approve(CONTRACT_ADDRESS, rawAmountIn);
-          await approveTx.wait();
-          console.log('✅ Approval confirmed');
+
+        // Helper: attempt router-based swap
+        const tryRouterSwap = async () => {
+          if (!SWAP_ROUTER_ADDRESS) return null;
+          try {
+            const router = new ethers.Contract(SWAP_ROUTER_ADDRESS, [
+              'function swapExactTokensForTokens(uint256 amountIn,uint256 amountOutMin,address[] calldata path,address to,uint256 deadline) returns (uint256[] memory amounts)',
+              'function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160) params) payable returns (uint256 amountOut)'
+            ], this.signer);
+
+            // Approve router if needed
+            const allowance = await erc20.allowance(owner, SWAP_ROUTER_ADDRESS);
+            if (allowance < rawAmountIn) {
+              const approveTx = await erc20.approve(SWAP_ROUTER_ADDRESS, rawAmountIn);
+              await approveTx.wait();
+            }
+
+            // Attempt V2-style swapExactTokensForTokens
+            const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 5);
+            try {
+              const path = [tokenInAddress, tokenOutAddress];
+              const amounts = await router.swapExactTokensForTokens(rawAmountIn, minAmountOut, path, owner, deadline);
+              // amounts is returned as array of uints
+              return { type: 'v2', result: amounts };
+            } catch (e) {
+              // Try Uniswap V3 exactInputSingle signature
+              try {
+                const fee = tokenInMeta.poolFee || 3000; // default 0.3%
+                const sqrtPriceLimitX96 = 0;
+                const paramsStruct = [tokenInAddress, tokenOutAddress, fee, owner, deadline, rawAmountIn, minAmountOut, sqrtPriceLimitX96];
+                const amountOut = await router.exactInputSingle(paramsStruct, { value: 0 });
+                return { type: 'v3', result: amountOut };
+              } catch (e2) {
+                console.warn('Router swap attempts failed:', e, e2);
+                return null;
+              }
+            }
+          } catch (e) {
+            console.warn('Router not usable or call failed:', e);
+            return null;
+          }
+        };
+
+        const routerReceipt = await tryRouterSwap();
+        if (routerReceipt) {
+          console.log('✅ Router swap succeeded', routerReceipt);
+          return routerReceipt;
         }
 
-        // Build params struct
+        // Fall back to external contract swap call (portfolio manager executes swap logic)
         const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 5); // 5 minutes
         const params = {
           tokenIn: tokenInAddress,
           tokenOut: tokenOutAddress,
-            amountIn: rawAmountIn,
-            minAmountOut: minAmountOut,
-            deadline: deadline
+          amountIn: rawAmountIn,
+          minAmountOut: minAmountOut,
+          deadline: deadline
         };
 
-        console.log('🚀 Executing live swap', {
+        console.log('🚀 Executing live swap via manager contract', {
           tokenIn: tokenInMeta.symbol,
           tokenOut: tokenOutMeta.symbol,
           amountIn: amountIn.toString(),
@@ -154,7 +210,7 @@ class SecureContractService {
 
         const tx = await this.contract.executeSwap(params);
         const receipt = await tx.wait();
-        console.log('✅ Swap transaction mined', receipt.hash || tx.hash);
+        console.log('✅ Swap transaction mined', receipt.transactionHash || receipt.hash || tx.hash);
         return receipt;
       } catch (e) {
         console.error('Live swap failed:', e);

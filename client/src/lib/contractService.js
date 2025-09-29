@@ -1,6 +1,7 @@
 // Migrated contractService.js (basic portfolio manager)
 import { ethers } from 'ethers';
 import { walletService } from '$lib/stores/wallet.js';
+import { rpcProvider } from '$lib/stores/wallet.js';
 
 const PORTFOLIO_MANAGER_ABI = [
   "function setStopLoss(uint256 _percentage) external",
@@ -25,6 +26,31 @@ const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
 class ContractService {
   constructor() { this.contract = null; this.provider = null; this.signer = null; }
   async initialize() { try { const wallet = walletService.store.get(); if (!wallet.isConnected || !wallet.provider) throw new Error('Wallet not connected'); this.provider = new ethers.BrowserProvider(wallet.provider); this.signer = await this.provider.getSigner(); this.contract = new ethers.Contract(CONTRACT_ADDRESS, PORTFOLIO_MANAGER_ABI, this.signer); return true; } catch (e) { console.error('Failed to initialize contract service:', e); throw e; } }
+  async initialize() {
+    try {
+      const wallet = walletService.store.get();
+      // prefer interactive provider if available
+      if (wallet && wallet.isConnected && wallet.provider) {
+        this.provider = new ethers.BrowserProvider(wallet.provider);
+        this.signer = await this.provider.getSigner();
+        this.contract = new ethers.Contract(CONTRACT_ADDRESS, PORTFOLIO_MANAGER_ABI, this.signer);
+      } else {
+        // fall back to read-only rpc provider
+        const rpc = rpcProvider && rpcProvider.subscribe ? null : null; // noop for bundlers
+        // get current rpcProvider value
+        let rpcVal = null;
+        rpcProvider.subscribe(v => rpcVal = v)();
+        if (!rpcVal) throw new Error('No available RPC provider for read-only operations');
+        this.provider = rpcVal;
+        this.signer = null; // no signer in read-only mode
+        this.contract = new ethers.Contract(CONTRACT_ADDRESS, PORTFOLIO_MANAGER_ABI, this.provider);
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to initialize contract service:', e);
+      throw e;
+    }
+  }
   async setStopLoss(p) { if (!this.contract) await this.initialize(); try { const bps = Math.floor(p * 100); const tx = await this.contract.setStopLoss(bps); await tx.wait(); return tx; } catch (e) { console.error('Failed to set stop loss:', e); throw e; } }
   async setTakeProfit(p) { if (!this.contract) await this.initialize(); try { const bps = Math.floor(p * 100); const tx = await this.contract.setTakeProfit(bps); await tx.wait(); return tx; } catch (e) { console.error('Failed to set take profit:', e); throw e; } }
   async activatePanicMode() { if (!this.contract) await this.initialize(); try { const tx = await this.contract.activatePanicMode(); await tx.wait(); return tx; } catch (e) { console.error('Failed to activate panic mode:', e); throw e; } }

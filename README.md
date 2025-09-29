@@ -117,6 +117,30 @@ The app integrates with **Uniswap APIs** for buying tokens and price data, while
 
 **Smart Contracts:**
 ```bash
+
+### Deploying contracts to Reactive Mainnet
+
+1. Add your deployer private key to the project root `.env` (never commit this file):
+
+```
+PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+REACTIVE_NETWORK_RPC=https://mainnet-rpc.rnk.dev/
+```
+
+2. Compile and deploy (from project root):
+
+```
+npx hardhat compile
+npx hardhat run scripts/deploy-reactive.js --network reactive
+```
+
+This writes `deployments/reactive-mainnet.json` containing `reactToken` and `portfolioManager` addresses which the frontend will load automatically. If you prefer, set the client env vars in `client/.env`:
+
+```
+VITE_REACT_TOKEN_ADDRESS=0x...
+VITE_PORTFOLIO_MANAGER_ADDRESS=0x...
+```
+
 # Compile contracts
 npx hardhat compile
 

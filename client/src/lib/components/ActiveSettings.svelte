@@ -10,8 +10,8 @@
     <div class="flex items-center">
       <span class="text-sm text-gray-500 dark:text-gray-400 mr-2">Automation</span>
       <div class="relative inline-block w-10 mr-2 align-middle select-none">
-        <input type="checkbox" bind:checked={automationActive} class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-gray-600 border-4 appearance-none cursor-pointer transition-all duration-300" />
-        <label class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-300" class:bg-blue-500={automationActive} class:bg-gray-300={!automationActive}></label>
+        <input id="automationToggle" type="checkbox" bind:checked={automationActive} class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white dark:bg-gray-600 border-4 appearance-none cursor-pointer transition-all duration-300" />
+        <label for="automationToggle" class="toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-300" class:bg-blue-500={automationActive} class:bg-gray-300={!automationActive}></label>
       </div>
     </div>
   </div>
