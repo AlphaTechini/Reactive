@@ -1,58 +1,109 @@
-// Enhanced Price Service with startup caching and optimized fetching
+// Enhanced Price Service with Global Storage integration
 import { writable, get } from 'svelte/store';
 import { secureContractService } from '$lib/secureContractService.js';
-import { fetchPriceIfChanged, getCachedPrice, clearPriceCache } from '$lib/priceSources/coingeckoPriceService.js';
 import { appMode } from '$lib/stores/appMode.js';
+import { INITIAL_TOKEN_LIST } from '$lib/config/network.js';
+// Global storage integration
+import { 
+  globalStorage,
+  globalPricesStore,
+  globalRefreshingStore,
+  globalDataSourceStore,
+  globalLastUpdatedStore,
+  globalPriceHistoryStore
+} from '$lib/stores/globalStorage.js';
+// Fast price polling for immediate updates
+import { fastPricePoller } from '$lib/services/fastPricePoller.js';
 
-// Price stores
-export const pricesStore = writable({});
-export const priceLoadingStore = writable(false);
-export const lastUpdatedStore = writable(null);
+// Price stores (now linked to global storage)
+export const pricesStore = globalPricesStore;
+export const priceLoadingStore = globalRefreshingStore;
+export const lastUpdatedStore = globalLastUpdatedStore;
+export const priceHistoryStore = globalPriceHistoryStore; // Historical prices for chart backwards sliding
+export const dataSourceStore = globalDataSourceStore;
+export const userDataStore = writable({});
 
 class EnhancedPriceService {
   constructor() {
     this.prices = new Map();
+    this.priceHistory = new Map(); // Historical price storage
     this.isInitialized = false;
     this.isRefreshing = false;
     this.subscribers = new Set();
     this.updateInterval = null;
-    this.BATCH_SIZE = 5; // Number of concurrent price fetches
-    this.REFRESH_INTERVAL_MS = 30000; // 30 seconds
+    this.MAX_HISTORY_POINTS = 1000; // Maximum historical data points to store
+    // Frontend only consumes cached data - no own refresh intervals
     
-    // Token list for price fetching
-    this.supportedTokens = [
-      { symbol: 'BTC', address: '0x1111111111111111111111111111111111111111' },
-      { symbol: 'WBTC', address: '0x1111111111111111111111111111111111111111' },
-      { symbol: 'ETH', address: '0x2222222222222222222222222222222222222222' },
-      { symbol: 'LINK', address: '0x3333333333333333333333333333333333333333' },
-      { symbol: 'ADA', address: '0x4444444444444444444444444444444444444444' },
-      { symbol: 'DOT', address: '0x5555555555555555555555555555555555555555' },
-      { symbol: 'SOL', address: '0x6666666666666666666666666666666666666666' },
-      { symbol: 'UNI', address: '0x7777777777777777777777777777777777777777' },
-      { symbol: 'USDC', address: '0x8888888888888888888888888888888888888888' },
-      { symbol: 'USDT', address: '0x9999999999999999999999999999999999999999' },
-      { symbol: 'REACT', address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }
-    ];
+    // Global storage integration
+    this.globalStorage = globalStorage;
+    this.userData = new Map();
+    
+    // Backend refresh monitoring
+    this.backendRefreshInterval = 15 * 60 * 1000; // 15 minutes
+    this.lastBackendCheck = null;
+    
+    // Token list for price fetching - using unified backend endpoint
+    this.supportedTokens = INITIAL_TOKEN_LIST.map(token => ({
+      symbol: token.symbol,
+      address: token.address,
+      display: token.symbol,
+      decimals: token.decimals,
+      category: token.category
+    }));
+    
+    // Webhook configuration for price alerts
+    this.alertThresholds = new Map(); // user-defined price change thresholds
+    this.webhookUrl = import.meta.env.VITE_WEBHOOK_URL || 'http://localhost:3001/api/price-alerts';
+
+    // Local cache (browser) so every visitor instantly sees last known prices without waiting
+    this.LOCAL_CACHE_KEY = 'reactivePriceCacheV1';
+    this.LOCAL_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes aligns with backend refresh cadence
   }
 
   // Initialize and fetch all prices at startup
   async initialize() {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      console.log('🚀 Price service already initialized, skipping...');
+      return;
+    }
     
-    console.log('🚀 Starting price service initialization...');
-    priceLoadingStore.set(true);
+    console.log('🚀 Starting price service with global storage...');
+    this.isInitialized = true; // Set early to prevent race conditions
+    globalRefreshingStore.set(true);
     
     try {
-      // Fetch all prices in parallel batches for better performance
-      await this.fetchAllPricesStartup();
+      // Wait for global storage to initialize
+      await this.globalStorage.initialize();
       
-      // Start periodic refresh
-      this.startPeriodicRefresh();
+      // Load any existing cached data immediately
+      const stats = this.globalStorage.getStats();
+      if (stats.priceCount > 0) {
+        console.log(`💾 Loaded ${stats.priceCount} cached prices immediately`);
+        // Data is already loaded, just check if it's fresh
+        const dataAge = stats.lastUpdated ? (Date.now() - stats.lastUpdated) / 1000 : Infinity;
+        console.log(`📊 Cache age: ${Math.round(dataAge)}s`);
+      }
+      
+      // Only fetch from backend if we have no data or it's very old (>15 minutes)
+      const hasRecentData = stats.lastUpdated && (Date.now() - stats.lastUpdated) < 15 * 60 * 1000;
+      
+      if (!hasRecentData || stats.priceCount === 0) {
+        console.log('📡 Fetching fresh data from backend...');
+        await this.fetchFromBackend();
+      } else {
+        console.log('✅ Using cached data (recent enough)');
+      }
+      
+      // Start monitoring backend refresh cycles
+      this.startBackendMonitoring();
+      
+      // Start fast price polling for immediate updates
+      await fastPricePoller.startPolling();
       
       this.isInitialized = true;
       console.log('✅ Price service initialized successfully');
       
-      // Subscribe to app mode changes to adjust fetching strategy
+      // Subscribe to app mode changes
       appMode.subscribe(() => {
         if (this.isInitialized) {
           this.handleModeChange();
@@ -62,86 +113,368 @@ class EnhancedPriceService {
     } catch (error) {
       console.error('❌ Failed to initialize price service:', error);
     } finally {
-      priceLoadingStore.set(false);
-      lastUpdatedStore.set(new Date().toISOString());
+      globalRefreshingStore.set(false);
     }
   }
 
-  // Fetch all prices at startup with batching for performance
-  async fetchAllPricesStartup() {
+  // Fetch prices from backend and store in global storage
+  async fetchFromBackend() {
     const mode = get(appMode);
-    const startTime = Date.now();
-    
-    console.log(`📊 Fetching ${this.supportedTokens.length} token prices in ${mode} mode...`);
-    
-    // Process tokens in batches to avoid overwhelming APIs
-    const batches = [];
-    for (let i = 0; i < this.supportedTokens.length; i += this.BATCH_SIZE) {
-      batches.push(this.supportedTokens.slice(i, i + this.BATCH_SIZE));
-    }
-    
-    for (const batch of batches) {
-      const promises = batch.map(token => this.fetchTokenPrice(token, mode));
-      await Promise.allSettled(promises); // Continue even if some fail
-    }
-    
-    this.updateStores();
-    const duration = Date.now() - startTime;
-    console.log(`⚡ Price fetching completed in ${duration}ms`);
-  }
-
-  // Fetch individual token price with mode-aware logic
-  async fetchTokenPrice(token, mode = null) {
-    if (!mode) mode = get(appMode);
+    globalRefreshingStore.set(true);
     
     try {
-      let price = null;
+      let batchPrices = null;
       
-      // Check cache first for faster loading
-      const cachedPrice = getCachedPrice(token.symbol);
-      if (cachedPrice !== null) {
-        price = cachedPrice;
-      } else {
-        // Fetch fresh price based on mode
-        if (mode === 'simulation') {
-          // Use webhook service for simulation mode, but fall back gracefully
-          try {
-            const prices = await secureContractService.getMockPrices();
-            const priceData = prices[token.address];
-            price = priceData ? priceData.current : null;
-            if (price == null) {
-              // fall back to CoinGecko
-              price = await fetchPriceIfChanged(token.symbol);
-            }
-          } catch (e) {
-            console.warn('Webhook fetch failed, falling back to CoinGecko for', token.symbol, e.message);
-            price = await fetchPriceIfChanged(token.symbol);
-          }
-        } else {
-          // Use CoinGecko for live mode
-          price = await fetchPriceIfChanged(token.symbol);
+      if (mode === 'simulation') {
+        // Use mock prices for simulation mode
+        try {
+          batchPrices = await secureContractService.getMockPrices();
+          console.log('✅ Loaded mock prices for simulation');
+        } catch (e) {
+          console.warn('Mock prices failed:', e.message);
         }
       }
       
-      if (price !== null) {
-        const previousPrice = this.prices.get(token.address)?.price || price;
-        const change = previousPrice ? ((price - previousPrice) / previousPrice) * 100 : 0;
-        
-        this.prices.set(token.address, {
-          symbol: token.symbol,
-          address: token.address,
-          price: price,
-          change: change,
-          timestamp: Date.now(),
-          mode: mode
-        });
+      // Get cached data from backend endpoint
+      if (!batchPrices) {
+        try {
+          const response = await fetch('http://localhost:3001/api/prices', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            batchPrices = await response.json();
+            console.log('✅ Loaded prices from backend');
+            
+            // Log cache metadata if available
+            if (batchPrices._metadata) {
+              console.log(`📊 Backend data: ${batchPrices._metadata.tokenCount} tokens, age: ${Math.round(batchPrices._metadata.cacheAge / 1000)}s`);
+            }
+          } else {
+            console.warn('⚠️ Backend endpoint error:', response.status, response.statusText);
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to load from backend:', e.message);
+        }
       }
       
-      return price;
+      // Process and store in global storage
+      if (batchPrices) {
+        const processedPrices = {};
+        
+        for (const token of this.supportedTokens) {
+          const symbol = token.display || token.symbol;
+          const priceData = batchPrices[symbol] || batchPrices[symbol.toUpperCase()];
+          
+          if (priceData && priceData.priceUSD !== null) {
+            let change = 0;
+            if (priceData.priceChangePercent !== null && priceData.priceChangePercent !== undefined) {
+              change = priceData.priceChangePercent;
+            }
+            
+            const pricePoint = {
+              symbol: symbol,
+              address: token.address,
+              price: priceData.priceUSD,
+              current: priceData.priceUSD,
+              change: change,
+              change24h: change,
+              timestamp: priceData.ts || Date.now(),
+              mode: mode,
+              previousPrice: priceData.previousPrice || null,
+              source: mode === 'simulation' ? 'mock' : 'backend'
+            };
+            
+            processedPrices[token.address] = pricePoint;
+          }
+        }
+        
+        // Store in global storage
+        await this.globalStorage.storePrices(processedPrices, { 
+          source: mode === 'simulation' ? 'mock' : 'backend',
+          updateCharts: true 
+        });
+        
+        return Object.keys(processedPrices).length;
+      }
+      
+      // Fallback to deterministic mock prices if everything fails
+      if (mode === 'simulation') {
+        const mockPrices = {};
+        let i = 0;
+        for (const token of this.supportedTokens) {
+          const base = token.symbol.split('').reduce((a,c)=>a + c.charCodeAt(0), 0) + (i * 7);
+          const price = (base % 500) + 5 + (base % 13)/10;
+          const change = ((base % 21) - 10);
+          
+          mockPrices[token.address] = {
+            symbol: token.symbol,
+            address: token.address,
+            price,
+            current: price,
+            change,
+            change24h: change,
+            timestamp: Date.now(),
+            mode: 'simulation',
+            previousPrice: price * (1 - change / 100),
+            source: 'mock'
+          };
+          i++;
+        }
+        
+        await this.globalStorage.storePrices(mockPrices, { 
+          source: 'mock',
+          updateCharts: true 
+        });
+        
+        console.log(`🧪 Generated ${this.supportedTokens.length} deterministic mock prices`);
+        return this.supportedTokens.length;
+      }
+      
+      return 0;
     } catch (error) {
-      console.warn(`⚠️ Failed to fetch price for ${token.symbol}:`, error.message);
-      return null;
+      console.error('❌ Backend fetch failed:', error);
+      return 0;
+    } finally {
+      globalRefreshingStore.set(false);
     }
+  }
+
+  // Start monitoring backend refresh cycles
+  startBackendMonitoring() {
+    // Check for backend refreshes every minute
+    setInterval(async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/health', {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+        
+        if (response.ok) {
+          const health = await response.json();
+          if (health.lastRefresh && health.lastRefresh !== this.lastBackendCheck) {
+            console.log('🔄 Backend refresh detected, updating prices...');
+            this.lastBackendCheck = health.lastRefresh;
+            globalRefreshingStore.set(true);
+            await this.fetchFromBackend();
+          }
+        }
+      } catch {
+        // Silently ignore monitoring errors
+      }
+    }, 60 * 1000); // Check every minute
+  }
+
+  // Fetch cached token prices from backend (no additional API calls)
+  async fetchCachedPricesBatch(mode = null) {
+    if (!mode) mode = get(appMode);
+    
+    try {
+      let batchPrices = null;
+      
+      if (mode === 'simulation') {
+        // Use webhook service for simulation mode, but fall back gracefully
+        try {
+          batchPrices = await secureContractService.getMockPrices();
+          console.log('✅ Loaded mock prices from webhook service');
+        } catch (e) {
+          console.warn('Webhook mock prices failed:', e.message);
+        }
+      }
+      
+      // Get cached data from backend endpoint (backend already fetched from APIs)
+      if (!batchPrices) {
+        try {
+          const response = await fetch('http://localhost:3001/api/prices', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            batchPrices = await response.json();
+            console.log('✅ Loaded prices from backend');
+            
+            // Log cache metadata if available
+            if (batchPrices._metadata) {
+              console.log(`📊 Backend data: ${batchPrices._metadata.tokenCount} tokens, age: ${Math.round(batchPrices._metadata.cacheAge / 1000)}s`);
+            }
+          } else {
+            console.warn('⚠️ Backend cache endpoint error:', response.status, response.statusText);
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to load from backend cache:', e.message);
+        }
+      }
+      
+      // Fallback to IPFS if backend failed and we have a known CID
+      if (!batchPrices && this.enableIPFS && this.ipfsNode && this.lastKnownPricesCID) {
+        try {
+          console.log('🔄 Backend failed, trying IPFS fallback...');
+          batchPrices = await this.fetchPricesFromIPFS(this.lastKnownPricesCID);
+          console.log('✅ Successfully loaded prices from IPFS fallback');
+        } catch (e) {
+          console.warn('⚠️ IPFS fallback also failed:', e.message);
+        }
+      }
+      
+      // Process batch response and update local prices
+      if (batchPrices) {
+        const timestamp = Date.now();
+        let updatedCount = 0;
+        
+        for (const token of this.supportedTokens) {
+          const symbol = token.display || token.symbol;
+          const priceData = batchPrices[symbol] || batchPrices[symbol.toUpperCase()];
+          
+          if (priceData && priceData.priceUSD !== null) {
+            // Use backend-calculated price change if available, otherwise calculate locally
+            let change = 0;
+            if (priceData.priceChangePercent !== null && priceData.priceChangePercent !== undefined) {
+              change = priceData.priceChangePercent;
+            } else {
+              // Fallback to local calculation if backend doesn't provide change
+              const previousPrice = this.prices.get(token.address)?.price || priceData.priceUSD;
+              change = previousPrice ? ((priceData.priceUSD - previousPrice) / previousPrice) * 100 : 0;
+            }
+            
+            const pricePoint = {
+              symbol: symbol,
+              address: token.address,
+              price: priceData.priceUSD,
+              current: priceData.priceUSD,        // compatibility for components expecting `current`
+              change: change,
+              change24h: change,                  // compatibility for components expecting `change24h`
+              timestamp: priceData.ts || timestamp,
+              mode: mode,
+              previousPrice: priceData.previousPrice || null
+            };
+            
+            this.prices.set(token.address, pricePoint);
+            this.addToHistory(token.address, pricePoint);
+            this.checkPriceAlerts(token, priceData.previousPrice || priceData.priceUSD, priceData.priceUSD, change);
+            updatedCount++;
+          } else if (priceData && priceData.sourceError) {
+            console.warn(`⚠️ No price data for ${symbol}:`, priceData.sourceError);
+          }
+        }
+        
+        console.log(`✅ Updated ${updatedCount} token prices from batch`);
+        return updatedCount;
+      }
+      // If we reach here and still have no prices AND we're in simulation mode, fabricate deterministic mock prices
+      if (mode === 'simulation') {
+        const timestamp = Date.now();
+        let i = 0;
+        for (const token of this.supportedTokens) {
+          // Base deterministic pseudo price using char codes + index
+          const base = token.symbol.split('').reduce((a,c)=>a + c.charCodeAt(0), 0) + (i * 7);
+            const price = (base % 500) + 5 + (base % 13)/10; // 5 .. ~505 range
+          const change = ((base % 21) - 10); // -10 .. +10
+          const pricePoint = {
+            symbol: token.symbol,
+            address: token.address,
+            price,
+            current: price,
+            change,
+            change24h: change,
+            timestamp,
+            mode: 'simulation',
+            previousPrice: price * (1 - change / 100),
+            source: 'mock'
+          };
+          this.prices.set(token.address, pricePoint);
+          this.addToHistory(token.address, pricePoint);
+          i++;
+        }
+        this.updateStores();
+        console.log(`🧪 Generated ${this.supportedTokens.length} deterministic mock prices (simulation fallback)`);
+        return this.supportedTokens.length;
+      }
+      return 0;
+    } catch (error) {
+      console.warn('⚠️ Failed to fetch batch prices:', error.message);
+      return 0;
+    }
+  }
+
+  // Add price point to historical data
+  addToHistory(tokenAddress, pricePoint) {
+    if (!this.priceHistory.has(tokenAddress)) {
+      this.priceHistory.set(tokenAddress, []);
+    }
+    
+    const history = this.priceHistory.get(tokenAddress);
+    history.push({
+      price: pricePoint.price,
+      timestamp: pricePoint.timestamp,
+      change: pricePoint.change
+    });
+    
+    // Keep only recent history to avoid memory bloat
+    if (history.length > this.MAX_HISTORY_POINTS) {
+      history.splice(0, history.length - this.MAX_HISTORY_POINTS);
+    }
+  }
+
+  // Check for price alert thresholds and send webhooks
+  async checkPriceAlerts(token, previousPrice, currentPrice, changePercent) {
+    const threshold = this.alertThresholds.get(token.address);
+    if (!threshold || !threshold.enabled) return;
+    
+    if (Math.abs(changePercent) >= threshold.percentage) {
+      console.log(`🚨 Price alert triggered for ${token.symbol}: ${changePercent.toFixed(2)}% change`);
+      
+      try {
+        await fetch(this.webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: token.symbol,
+            address: token.address,
+            previousPrice,
+            currentPrice,
+            changePercent,
+            threshold: threshold.percentage,
+            timestamp: Date.now()
+          })
+        });
+        
+        console.log(`📡 Price alert webhook sent for ${token.symbol}`);
+      } catch (error) {
+        console.warn('Failed to send price alert webhook:', error);
+      }
+    }
+  }
+
+  // Set price alert threshold for a token
+  setPriceAlert(tokenAddress, percentage) {
+    this.alertThresholds.set(tokenAddress, {
+      percentage: Math.abs(percentage),
+      enabled: true,
+      createdAt: Date.now()
+    });
+    console.log(`🔔 Price alert set for ${tokenAddress}: ${percentage}% threshold`);
+  }
+
+  // Remove price alert threshold
+  removePriceAlert(tokenAddress) {
+    this.alertThresholds.delete(tokenAddress);
+    console.log(`🔕 Price alert removed for ${tokenAddress}`);
+  }
+
+  // Get historical prices for chart
+  getHistoricalPrices(tokenAddress, fromTimestamp = null) {
+    const history = this.priceHistory.get(tokenAddress) || [];
+    if (!fromTimestamp) return history;
+    
+    return history.filter(point => point.timestamp >= fromTimestamp);
   }
 
   // Manual refresh all prices
@@ -152,113 +485,184 @@ class EnhancedPriceService {
     }
     
     this.isRefreshing = true;
-    priceLoadingStore.set(true);
+    globalRefreshingStore.set(true);
     
-    console.log('🔄 Manually refreshing all prices...');
-    
+    console.log('🔄 Manual refresh started...');
+
     try {
-      // Clear cache to force fresh fetches
-      clearPriceCache();
-      
-      // Fetch all prices
-      await this.fetchAllPricesStartup();
-      
-      console.log('✅ Manual price refresh completed');
+      const updatedCount = await this.fetchFromBackend();
+      console.log(`✅ Manual refresh completed, updated ${updatedCount} prices`);
     } catch (error) {
-      console.error('❌ Manual price refresh failed:', error);
+      console.error('❌ Manual refresh failed:', error);
     } finally {
       this.isRefreshing = false;
-      priceLoadingStore.set(false);
-      lastUpdatedStore.set(new Date().toISOString());
+      globalRefreshingStore.set(false);
     }
   }
 
-  // Start periodic price updates
-  startPeriodicRefresh() {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-    }
-    
-    this.updateInterval = setInterval(async () => {
-      if (!this.isRefreshing) {
-        console.log('⏰ Periodic price update...');
-        await this.refreshSelectedPrices();
-      }
-    }, this.REFRESH_INTERVAL_MS);
-  }
-
-  // Refresh only prices that have changed significantly or are stale
+  // Refresh prices from backend
   async refreshSelectedPrices() {
-    const mode = get(appMode);
-    const now = Date.now();
-    const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
-    
-    const tokensToUpdate = this.supportedTokens.filter(token => {
-      const cached = this.prices.get(token.address);
-      return !cached || 
-             (now - cached.timestamp) > STALE_THRESHOLD ||
-             cached.mode !== mode;
-    });
-    
-    if (tokensToUpdate.length > 0) {
-      console.log(`🔄 Updating ${tokensToUpdate.length} stale prices...`);
-      
-      const promises = tokensToUpdate.map(token => this.fetchTokenPrice(token, mode));
-      await Promise.allSettled(promises);
-      
-      this.updateStores();
-      lastUpdatedStore.set(new Date().toISOString());
+    console.log('🔄 Refreshing prices from backend...');
+    globalRefreshingStore.set(true);
+
+    try {
+      const updatedCount = await this.fetchFromBackend();
+      console.log(`✅ Refresh completed, loaded ${updatedCount} prices`);
+    } catch (error) {
+      console.error('❌ Refresh failed:', error);
+    } finally {
+      globalRefreshingStore.set(false);
     }
   }
 
-  // Handle app mode changes
+  // Handle app mode changes by re-fetching data
   async handleModeChange() {
     console.log('🔄 App mode changed, refreshing prices...');
-    
-    // Clear cache and fetch fresh prices for new mode
-    clearPriceCache();
-    await this.refreshAllPrices();
+    await this.fetchFromBackend();
   }
 
-  // Update Svelte stores
+  // User wallet management
+  async getUserData(walletAddress) {
+    // Check local cache first
+    if (this.userData.has(walletAddress)) {
+      return this.userData.get(walletAddress);
+    }
+    
+    // Fetch from backend
+    try {
+      const response = await fetch(`http://localhost:3001/api/users/${walletAddress}`);
+      if (response.ok) {
+        const userData = await response.json();
+        this.userData.set(walletAddress, userData);
+        return userData;
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+    
+    return null;
+  }  async updateUserData(walletAddress, userData) {
+    try {
+      const response = await fetch(`http://localhost:3001/api/users/${walletAddress}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      
+      if (response.ok) {
+        const updatedData = await response.json();
+        this.userData.set(walletAddress, updatedData);
+        
+        // Update reactive store
+        const currentUserData = get(userDataStore);
+        userDataStore.set({
+          ...currentUserData,
+          [walletAddress]: updatedData
+        });
+        
+        return updatedData;
+      }
+    } catch (error) {
+      console.error('Error updating user data:', error);
+    }
+    
+    return null;
+  }
+
+  // Process IPFS data and update prices
+  async updatePricesFromData(ipfsData) {
+    if (!ipfsData || typeof ipfsData !== 'object') {
+      console.warn('Invalid IPFS data provided');
+      return 0;
+    }
+    
+    const timestamp = Date.now();
+    let updatedCount = 0;
+    const mode = get(appMode);
+    
+    for (const token of this.supportedTokens) {
+      const symbol = token.display || token.symbol;
+      const priceData = ipfsData[symbol] || ipfsData[symbol.toUpperCase()];
+      
+      if (priceData && priceData.priceUSD !== null) {
+        // Use IPFS-stored price change if available, otherwise calculate locally
+        let change = 0;
+        if (priceData.priceChangePercent !== null && priceData.priceChangePercent !== undefined) {
+          change = priceData.priceChangePercent;
+        } else {
+          // Fallback to local calculation if IPFS doesn't provide change
+          const previousPrice = this.prices.get(token.address)?.price || priceData.priceUSD;
+          change = previousPrice ? ((priceData.priceUSD - previousPrice) / previousPrice) * 100 : 0;
+        }
+        
+        const pricePoint = {
+          symbol: symbol,
+          address: token.address,
+          price: priceData.priceUSD,
+          current: priceData.priceUSD,        // compatibility for components expecting `current`
+          change: change,
+          change24h: change,                  // compatibility for components expecting `change24h`
+          timestamp: priceData.ts || timestamp,
+          mode: mode,
+          previousPrice: priceData.previousPrice || null,
+          source: 'ipfs'
+        };
+        
+        this.prices.set(token.address, pricePoint);
+        this.addToHistory(token.address, pricePoint);
+        this.checkPriceAlerts(token, priceData.previousPrice || priceData.priceUSD, priceData.priceUSD, change);
+        updatedCount++;
+      } else if (priceData && priceData.sourceError) {
+        console.warn(`⚠️ No price data for ${symbol}:`, priceData.sourceError);
+      }
+    }
+    
+    // Update stores with new data
+    this.updateStores();
+    lastUpdatedStore.set(new Date().toISOString());
+    
+    console.log(`✅ Updated ${updatedCount} token prices from IPFS data`);
+    return updatedCount;
+  }
+
+  // Update Svelte stores with current price data
   updateStores() {
-    const pricesObject = {};
-    this.prices.forEach((data, address) => {
-      pricesObject[address] = {
-        symbol: data.symbol,
-        price: data.price,
-        change: data.change,
-        timestamp: data.timestamp
-      };
-    });
+    const priceData = {};
+    const historyData = {};
     
-    pricesStore.set(pricesObject);
-    this.notifySubscribers(pricesObject);
+    for (const [address, priceInfo] of this.prices) {
+      priceData[address] = priceInfo;
+    }
+    
+    for (const [address, history] of this.priceHistory) {
+      historyData[address] = history;
+    }
+    
+    pricesStore.set(priceData);
+    globalPriceHistoryStore.set(historyData);
+
+    // Persist to localStorage for fast load on next visit (ignore errors quietly)
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const payload = {
+          prices: priceData,
+          lastUpdated: new Date().toISOString()
+        };
+        localStorage.setItem(this.LOCAL_CACHE_KEY, JSON.stringify(payload));
+      }
+    } catch {
+      // LocalStorage persistence failed (quota/serialization) – ignore
+    }
   }
 
-  // Get price for specific token
-  getPrice(address) {
-    const data = this.prices.get(address);
-    return data ? {
-      symbol: data.symbol,
-      price: data.price,
-      change: data.change,
-      timestamp: data.timestamp
-    } : null;
+  // Get current price for a specific token
+  getPrice(tokenAddress) {
+    return this.globalStorage.getPrice(tokenAddress);
   }
 
-  // Get all prices
+  // Get all current prices
   getAllPrices() {
-    const result = {};
-    this.prices.forEach((data, address) => {
-      result[address] = {
-        symbol: data.symbol,
-        price: data.price,
-        change: data.change,
-        timestamp: data.timestamp
-      };
-    });
-    return result;
+    return this.globalStorage.getAllPrices();
   }
 
   // Subscribe to price updates
@@ -267,59 +671,73 @@ class EnhancedPriceService {
     return () => this.subscribers.delete(callback);
   }
 
-  // Notify subscribers
-  notifySubscribers(prices) {
-    this.subscribers.forEach(callback => {
-      try {
-        callback(prices);
-      } catch (error) {
-        console.error('Subscriber callback error:', error);
-      }
-    });
+  // Notify all subscribers of price updates
+  notifySubscribers() {
+    const prices = this.getAllPrices();
+    this.subscribers.forEach(callback => callback(prices));
   }
 
-  // Format price for display
-  formatPrice(price, decimals = 6) {
-    if (price == null || isNaN(price)) return '--';
+  // Format price with appropriate decimal places
+  formatPrice(price, decimals = 4) {
+    if (price === null || price === undefined || isNaN(price)) {
+      return '$0.00';
+    }
     
-    if (price >= 1000) {
+    const num = Number(price);
+    if (num === 0) return '$0.00';
+    
+    // For very small prices, use more decimals
+    if (num < 0.01) {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(price);
+        minimumFractionDigits: Math.min(8, decimals),
+        maximumFractionDigits: Math.min(8, decimals)
+      }).format(num);
     }
     
+    // For normal prices, use standard formatting
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals
-    }).format(price);
+      minimumFractionDigits: 2,
+      maximumFractionDigits: Math.min(4, decimals)
+    }).format(num);
   }
 
-  // Format price change
+  // Format percentage change with color indicators
   formatChange(change) {
-    if (change == null || isNaN(change)) return '--';
-    const sign = change >= 0 ? '+' : '';
-    return `${sign}${change.toFixed(2)}%`;
+    if (change === null || change === undefined || isNaN(change)) {
+      return '0.00%';
+    }
+    
+    const num = Number(change);
+    const sign = num >= 0 ? '+' : '';
+    return `${sign}${num.toFixed(2)}%`;
   }
 
-  // Cleanup
-  destroy() {
+  // Cleanup method
+  cleanup() {
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = null;
     }
     
     this.subscribers.clear();
-    this.prices.clear();
-    this.isInitialized = false;
     
-    console.log('🧹 Price service destroyed');
+    // Clear global storage
+    this.globalStorage.clear();
+    
+    console.log('🧹 Price service cleaned up');
+  }
+  
+  // Status methods
+  getStorageStatus() {
+    return this.globalStorage.getStats();
   }
 }
 
-// Export singleton instance
-export const enhancedPriceService = new EnhancedPriceService();
+// Create and export a singleton instance
+export const priceService = new EnhancedPriceService();
+
+export default priceService;

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IPFS & MetaMask Test</title>
+    <script type="module">
+        // Test IPFS functionality
+        async function testIPFS() {
+            try {
+                console.log('Testing IPFS integration...');
+                
+                // Test if Helia can be imported
+                const { createHelia } = await import('helia');
+                const { unixfs } = await import('@helia/unixfs');
+                
+                console.log('✅ Helia modules imported successfully');
+                
+                // Try to create a basic IPFS node
+                const helia = await createHelia();
+                const fs = unixfs(helia);
+                
+                console.log('✅ IPFS node created successfully');
+                
+                // Test storing simple data
+                const testData = new TextEncoder().encode('Hello IPFS from Reactive Portfolio!');
+                const cid = await fs.addBytes(testData);
+                
+                console.log('✅ Data stored to IPFS with CID:', cid.toString());
+                
+                // Test retrieving data
+                const chunks = [];
+                for await (const chunk of fs.cat(cid)) {
+                    chunks.push(chunk);
+                }
+                const retrieved = new TextDecoder().decode(chunks[0]);
+                
+                console.log('✅ Data retrieved from IPFS:', retrieved);
+                
+                await helia.stop();
+                console.log('✅ IPFS test completed successfully');
+                
+                document.getElementById('ipfs-status').innerHTML = '✅ IPFS Working';
+                document.getElementById('ipfs-details').innerHTML = `
+                    <p>CID: ${cid.toString()}</p>
+                    <p>Data: ${retrieved}</p>
+                `;
+                
+            } catch (error) {
+                console.error('❌ IPFS test failed:', error);
+                document.getElementById('ipfs-status').innerHTML = '❌ IPFS Failed';
+                document.getElementById('ipfs-details').innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test MetaMask functionality
+        async function testMetaMask() {
+            try {
+                console.log('Testing MetaMask integration...');
+                
+                if (!window.ethereum) {
+                    throw new Error('MetaMask not detected');
+                }
+                
+                console.log('✅ MetaMask detected');
+                
+                // Test account request
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                console.log('✅ MetaMask accounts:', accounts);
+                
+                document.getElementById('metamask-status').innerHTML = '✅ MetaMask Working';
+                document.getElementById('metamask-details').innerHTML = `
+                    <p>Accounts: ${accounts.length}</p>
+                    <p>Address: ${accounts[0]}</p>
+                `;
+                
+            } catch (error) {
+                console.error('❌ MetaMask test failed:', error);
+                document.getElementById('metamask-status').innerHTML = '❌ MetaMask Failed';
+                document.getElementById('metamask-details').innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        // Run tests when page loads
+        window.addEventListener('load', () => {
+            console.log('Starting integration tests...');
+            testIPFS();
+        });
+    </script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .status { font-weight: bold; font-size: 18px; }
+        .details { margin-top: 10px; color: #666; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Reactive Portfolio - Integration Tests</h1>
+    
+    <div class="test-section">
+        <h2>IPFS Test</h2>
+        <div id="ipfs-status" class="status">🔄 Testing...</div>
+        <div id="ipfs-details" class="details"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>MetaMask Test</h2>
+        <div id="metamask-status" class="status">⏳ Ready to test</div>
+        <div id="metamask-details" class="details"></div>
+        <button onclick="testMetaMask()">Test MetaMask Connection</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Backend Test</h2>
+        <div id="backend-status" class="status">⏳ Ready to test</div>
+        <div id="backend-details" class="details"></div>
+        <button onclick="testBackend()">Test Backend Connection</button>
+    </div>
+    
+    <script>
+        async function testBackend() {
+            try {
+                console.log('Testing backend connection...');
+                
+                const response = await fetch('http://localhost:3001/api/prices');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Backend responded:', data);
+                    
+                    document.getElementById('backend-status').innerHTML = '✅ Backend Working';
+                    document.getElementById('backend-details').innerHTML = `
+                        <p>Tokens: ${data._metadata?.tokenCount || 'Unknown'}</p>
+                        <p>Last Updated: ${data._metadata?.lastFetch || 'Unknown'}</p>
+                        <p>IPFS CID: ${data._metadata?.ipfs?.pricesCID || 'None'}</p>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Backend test failed:', error);
+                document.getElementById('backend-status').innerHTML = '❌ Backend Failed';
+                document.getElementById('backend-details').innerHTML = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

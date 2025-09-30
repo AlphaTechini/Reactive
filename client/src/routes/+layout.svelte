@@ -4,7 +4,8 @@
 	import { onMount } from 'svelte';
 	import { walletService, walletConnected, networkCorrect } from '$lib/stores/wallet.js';
 	import { appMode } from '$lib/stores/appMode.js';
-	import { enhancedPriceService, priceLoadingStore } from '$lib/priceService.js';
+	import { priceService } from '$lib/priceService.js';
+	import { globalRefreshingStore } from '$lib/stores/globalStorage.js';
 	import WalletConnection from '$lib/components/WalletConnection.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Header from '$lib/components/Header.svelte';
@@ -16,17 +17,30 @@
 	let initializingServices = $state(true);
 	let autoSwitchAttempted = $state(false); // Track if we've already tried auto-switching
 	
-	onMount(async () => { 
-		console.log('🚀 Initializing app services...');
-		
-		// Initialize wallet service
-		await walletService.init(); 
-		
-		// Initialize price service for immediate price loading
-		await enhancedPriceService.initialize();
-		
+	onMount(async () => {
+		console.log('🚀 Initializing app services (parallel)...');
+
+		// Start wallet and price initialization in parallel to avoid blocking UI
+		const walletPromise = walletService.init();
+		const pricePromise = priceService.initialize();
+
+		// Short timeout to avoid long blocking if wallet provider is slow or not present
+		const timeout = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+		// Wait for price service to finish and wait a short time for wallet init (e.g. 4s)
+		try {
+			await Promise.race([
+				Promise.allSettled([pricePromise, walletPromise]),
+				timeout(4000)
+			]);
+		} catch (e) {
+			console.warn('Service initialization race encountered an error:', e);
+		}
+
+		// Do NOT await pricePromise here so UI becomes interactive immediately.
+		// Price service will continue initializing in background and update stores when ready.
 		initializingServices = false;
-		console.log('✅ App services initialized');
+		console.log('✅ App services initialization started (UI now interactive)');
 	});
 	
 	// Handle mode changes with network auto-switching and service reinitialization
@@ -86,7 +100,7 @@
 						</div>
 						<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Initializing Services</h2>
 						<p class="text-gray-600 dark:text-gray-400 mb-4">Loading wallet and price services...</p>
-						{#if $priceLoadingStore}
+						{#if $globalRefreshingStore}
 							<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
 								<div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 60%"></div>
 							</div>

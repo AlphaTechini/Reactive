@@ -57,7 +57,70 @@
   const truncateHash = (h)=> h?`${h.slice(0,6)}...${h.slice(-4)}`:''; function toggleDetails(id){ showDetails[id]=!showDetails[id]; showDetails={...showDetails}; }
   function openEtherscan(hash){ const explorerUrl = `https://explorer.reactive.network/tx/${hash}`; window.open(explorerUrl,'_blank'); }
   function clearEvents(){ events=[]; notify.success('Event history cleared');} 
-  onMount(()=>{ const unsub = walletStore.subscribe(async (wallet)=>{ if(wallet.isConnected && !isSubscribed){ try { await contractService.initialize(); contractService.subscribeToEvents({ onStopLossSet:(d)=>addEvent('StopLossSet',d), onTakeProfitSet:(d)=>addEvent('TakeProfitSet',d), onPanicModeTriggered:(d)=>addEvent('PanicModeTriggered',d), onPanicModeDeactivated:(d)=>addEvent('PanicModeDeactivated',d), onPortfolioRebalanced:(d)=>addEvent('PortfolioRebalanced',d) }); isSubscribed=true; } catch(e){ console.error('Failed to subscribe to contract events:',e); notify.error('Failed to connect to contract events'); } } else if(!wallet.isConnected && isSubscribed){ contractService.unsubscribeFromEvents(); isSubscribed=false; }}); return ()=>unsub(); });
+  let subscriptionInProgress = false;
+  let lastFailureNotified = false;
+
+  async function tryInitializeWithRetry(maxAttempts = 5, delayMs = 1000) {
+    let attempt = 0;
+    let currentDelay = delayMs;
+    while (attempt < maxAttempts) {
+      try {
+        await contractService.initialize();
+        // success
+        lastFailureNotified = false;
+        return true;
+      } catch (err) {
+        attempt++;
+        console.warn(`Contract init attempt ${attempt} failed`, err);
+        if (!lastFailureNotified) {
+          notify.error('Failed to connect to contract events (will retry)');
+          lastFailureNotified = true;
+        }
+        // exponential backoff
+        await new Promise(r => setTimeout(r, currentDelay));
+        currentDelay *= 2;
+      }
+    }
+    return false;
+  }
+
+  onMount(()=>{
+    const unsub = walletStore.subscribe(async (wallet)=>{
+      if (wallet.isConnected && !isSubscribed) {
+        if (subscriptionInProgress) return; // already trying
+        subscriptionInProgress = true;
+        try {
+          const ok = await tryInitializeWithRetry(4, 1000);
+          if (!ok) {
+            console.error('Unable to initialize contract service after retries');
+            subscriptionInProgress = false;
+            return;
+          }
+
+          // subscribe safely
+          try {
+            contractService.subscribeToEvents({
+              onStopLossSet: (d) => addEvent('StopLossSet', d),
+              onTakeProfitSet: (d) => addEvent('TakeProfitSet', d),
+              onPanicModeTriggered: (d) => addEvent('PanicModeTriggered', d),
+              onPanicModeDeactivated: (d) => addEvent('PanicModeDeactivated', d),
+              onPortfolioRebalanced: (d) => addEvent('PortfolioRebalanced', d)
+            });
+            isSubscribed = true;
+          } catch (subErr) {
+            console.error('Failed to subscribe to contract events after init:', subErr);
+            notify.error('Failed to subscribe to contract events');
+          }
+        } finally {
+          subscriptionInProgress = false;
+        }
+      } else if (!wallet.isConnected && isSubscribed) {
+        try { contractService.unsubscribeFromEvents(); } catch(e){ console.warn('Error during unsubscribe', e); }
+        isSubscribed = false;
+      }
+    });
+    return ()=>unsub();
+  });
   onDestroy(()=>{ if(isSubscribed) contractService.unsubscribeFromEvents(); });
 </script>
 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">

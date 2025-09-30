@@ -140,12 +140,17 @@ class SecureContractService {
         const owner = await this.signer.getAddress();
         const erc20 = new ethers.Contract(tokenInAddress, ERC20_ABI, this.signer);
 
-        // Helper: attempt router-based swap
+        // Helper: attempt router-based swap (MockSwapRouter or real Uniswap router)
         const tryRouterSwap = async () => {
           if (!SWAP_ROUTER_ADDRESS) return null;
           try {
+            // Define router contract with both MockSwapRouter and Uniswap methods
             const router = new ethers.Contract(SWAP_ROUTER_ADDRESS, [
-              'function swapExactTokensForTokens(uint256 amountIn,uint256 amountOutMin,address[] calldata path,address to,uint256 deadline) returns (uint256[] memory amounts)',
+              // MockSwapRouter methods
+              'function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] calldata path, address to, uint256 deadline) returns (uint256[] memory amounts)',
+              'function setRate(address tokenIn, address tokenOut, uint256 rate) external',
+              'function getRate(address tokenIn, address tokenOut) view returns (uint256)',
+              // Uniswap V3 method (fallback)
               'function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160) params) payable returns (uint256 amountOut)'
             ], this.signer);
 
@@ -156,23 +161,27 @@ class SecureContractService {
               await approveTx.wait();
             }
 
-            // Attempt V2-style swapExactTokensForTokens
             const deadline = BigInt(Math.floor(Date.now() / 1000) + 60 * 5);
+            
+            // Try MockSwapRouter first (works for both mock and real Uniswap V2 routers)
             try {
               const path = [tokenInAddress, tokenOutAddress];
-              const amounts = await router.swapExactTokensForTokens(rawAmountIn, minAmountOut, path, owner, deadline);
-              // amounts is returned as array of uints
-              return { type: 'v2', result: amounts };
+              const tx = await router.swapExactTokensForTokens(rawAmountIn, minAmountOut, path, owner, deadline);
+              const receipt = await tx.wait();
+              console.log('✅ Router swap transaction completed:', receipt.hash);
+              return { type: 'router', tx, receipt };
             } catch (e) {
-              // Try Uniswap V3 exactInputSingle signature
+              console.warn('V2-style swap failed, trying V3:', e);
+              // Try Uniswap V3 exactInputSingle as fallback
               try {
                 const fee = tokenInMeta.poolFee || 3000; // default 0.3%
                 const sqrtPriceLimitX96 = 0;
                 const paramsStruct = [tokenInAddress, tokenOutAddress, fee, owner, deadline, rawAmountIn, minAmountOut, sqrtPriceLimitX96];
-                const amountOut = await router.exactInputSingle(paramsStruct, { value: 0 });
-                return { type: 'v3', result: amountOut };
+                const tx = await router.exactInputSingle(paramsStruct, { value: 0 });
+                const receipt = await tx.wait();
+                return { type: 'v3', tx, receipt };
               } catch (e2) {
-                console.warn('Router swap attempts failed:', e, e2);
+                console.warn('All router swap attempts failed:', e, e2);
                 return null;
               }
             }
@@ -185,7 +194,7 @@ class SecureContractService {
         const routerReceipt = await tryRouterSwap();
         if (routerReceipt) {
           console.log('✅ Router swap succeeded', routerReceipt);
-          return routerReceipt;
+          return routerReceipt.receipt || routerReceipt.tx; // Return the transaction receipt
         }
 
         // Fall back to external contract swap call (portfolio manager executes swap logic)

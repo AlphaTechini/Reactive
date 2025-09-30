@@ -11,7 +11,7 @@
     "interact": "hardhat run scripts/interact.js",
     "network-info": "hardhat run scripts/network-info.js",
     "webhook": "node scripts/webhook-service.js",
-    "start:full": "concurrently \"npm run webhook\" \"cd client && npm run dev\"",
+  "start:full": "node scripts/start-full.js",
     "clean": "hardhat clean",
     "size": "hardhat size-contracts"
   },
@@ -23,7 +23,11 @@
     "ethers": "latest",
     "plotly.js-dist": "latest",
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "helia": "^4.2.4",
+    "@helia/unixfs": "^3.0.6",
+    "@helia/ipns": "^7.2.1",
+    "@libp2p/crypto": "^4.1.3"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "latest",
@@ -37,6 +41,7 @@
     "solidity-coverage": "latest",
     "typechain": "^8.2.0",
     "typescript": "latest",
-    "concurrently": "^7.6.0"
+    "concurrently": "^7.6.0",
+    "get-port": "^6.0.0"
   }
 }

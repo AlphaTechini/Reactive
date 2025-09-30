@@ -29,8 +29,13 @@
 		"vite-plugin-devtools-json": "^1.0.0"
 	},
 	"dependencies": {
+		"@helia/json": "^4.0.7",
+		"@helia/unixfs": "^5.1.0",
 		"ethers": "^6.15.0",
+		"helia": "^5.5.1",
+		"multiformats": "^13.4.1",
 		"plotly.js-dist": "^3.1.0",
+		"plotly.js-dist-min": "^3.1.1",
 		"svelte-hot-french-toast": "^4.0.0"
 	}
 }

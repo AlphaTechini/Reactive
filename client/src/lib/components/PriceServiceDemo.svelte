@@ -1,13 +1,14 @@
 <!-- Test component to demonstrate enhanced features -->
 <script>
   import { onMount } from 'svelte';
-  import { enhancedPriceService, pricesStore, priceLoadingStore, lastUpdatedStore } from '$lib/priceService.js';
+  import { priceService } from '$lib/priceService.js';
+  import { globalPricesStore, globalRefreshingStore, globalLastUpdatedStore } from '$lib/stores/globalStorage.js';
   import { appMode } from '$lib/stores/appMode.js';
   
   let priceData = {};
   
   onMount(() => {
-    const unsubscribe = pricesStore.subscribe(prices => {
+    const unsubscribe = globalPricesStore.subscribe(prices => {
       priceData = prices;
     });
     
@@ -15,7 +16,7 @@
   });
   
   async function manualRefresh() {
-    await enhancedPriceService.refreshAllPrices();
+    await priceService.refreshAllPrices();
   }
 </script>
 
@@ -30,10 +31,10 @@
       </span>
       <button 
         on:click={manualRefresh} 
-        disabled={$priceLoadingStore}
+        disabled={$globalRefreshingStore}
         class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
       >
-        {$priceLoadingStore ? 'Refreshing...' : 'Refresh'}
+        {$globalRefreshingStore ? 'Refreshing...' : 'Refresh'}
       </button>
     </div>
   </div>
@@ -51,23 +52,23 @@
         </div>
         <div class="flex items-center justify-between">
           <span class="text-lg font-bold text-gray-900 dark:text-white">
-            {enhancedPriceService.formatPrice(data.price)}
+            {priceService.formatPrice(data.price)}
           </span>
           <span class="text-sm" class:text-green-500={data.change >= 0} class:text-red-500={data.change < 0}>
-            {enhancedPriceService.formatChange(data.change)}
+            {priceService.formatChange(data.change)}
           </span>
         </div>
       </div>
     {/each}
   </div>
 
-  {#if $lastUpdatedStore}
+  {#if $globalLastUpdatedStore}
     <div class="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
-      Last updated: {new Date($lastUpdatedStore).toLocaleString()}
+      Last updated: {new Date($globalLastUpdatedStore).toLocaleString()}
     </div>
   {/if}
 
-  {#if $priceLoadingStore}
+  {#if $globalRefreshingStore}
     <div class="mt-4 flex items-center justify-center">
       <svg class="w-6 h-6 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
