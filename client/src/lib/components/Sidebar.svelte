@@ -25,6 +25,13 @@
   onMount(() => {
     unsubscribe = globalPricesStore.subscribe(prices => {
       priceData = prices;
+      console.log('💰 Sidebar received price update:', Object.keys(prices).length, 'addresses');
+      if (Object.keys(prices).length > 0) {
+        const firstKey = Object.keys(prices)[0];
+        console.log('💰 Sample price data:', firstKey, prices[firstKey]);
+        console.log('💰 First token address we are looking for:', INITIAL_TOKEN_LIST[0].address);
+        console.log('💰 Does first token address exist in prices?', prices[INITIAL_TOKEN_LIST[0].address]);
+      }
     });
   });
   
@@ -57,10 +64,17 @@
   
   function getTokenWithPrice(token) {
     const priceInfo = priceData[token.address];
+    
+    // Debug: log first token to see data structure
+    if (token.symbol === 'BTC' && priceInfo) {
+      console.log('🔍 BTC Price Data:', priceInfo);
+      console.log('🔍 All Price Data Keys:', Object.keys(priceData));
+    }
+    
     return {
       ...token,
-      price: priceInfo?.price || null,
-      change: priceInfo?.change || 0
+      price: priceInfo?.price || priceInfo?.current || null,
+      change: priceInfo?.change24h || priceInfo?.change || 0
     };
   }
 </script>

@@ -14,6 +14,8 @@ import {
 } from '$lib/stores/globalStorage.js';
 // Fast price polling for immediate updates
 import { fastPricePoller } from '$lib/services/fastPricePoller.js';
+// IPFS price storage for shared access
+import { priceStorageService } from '$lib/services/priceStorage.js';
 
 // Price stores (now linked to global storage)
 export const pricesStore = globalPricesStore;
@@ -714,6 +716,76 @@ class EnhancedPriceService {
     const num = Number(change);
     const sign = num >= 0 ? '+' : '';
     return `${sign}${num.toFixed(2)}%`;
+  }
+
+  /**
+   * Store current prices to IPFS for shared access
+   * @returns {Promise<string>} CID of stored data
+   */
+  async storePricesToIPFS() {
+    try {
+      console.log('🌐 Storing prices to IPFS...');
+      
+      // Initialize IPFS if needed
+      await priceStorageService.initialize();
+      
+      // Get current prices from global storage
+      const currentPrices = get(globalPricesStore);
+      
+      if (Object.keys(currentPrices).length === 0) {
+        throw new Error('No prices available to store');
+      }
+      
+      // Store to IPFS
+      const cid = await priceStorageService.storePrices(currentPrices);
+      
+      console.log('✅ Prices stored to IPFS:', cid);
+      return cid;
+    } catch (error) {
+      console.error('❌ Failed to store prices to IPFS:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieve prices from IPFS using CID
+   * @param {string} cid - IPFS CID to retrieve from
+   * @returns {Promise<Object>} Price data
+   */
+  async getPricesFromIPFS(cid) {
+    try {
+      console.log('🌐 Retrieving prices from IPFS:', cid);
+      
+      // Initialize IPFS if needed
+      await priceStorageService.initialize();
+      
+      // Retrieve from IPFS
+      const data = await priceStorageService.getPrices(cid);
+      
+      // Extract just the price data (remove metadata)
+      const { _metadata, ...prices } = data;
+      
+      // Store in global storage
+      await this.globalStorage.storePrices(prices, {
+        source: 'ipfs',
+        cid: cid,
+        timestamp: _metadata?.timestamp
+      });
+      
+      console.log('✅ Prices retrieved from IPFS and stored locally');
+      return prices;
+    } catch (error) {
+      console.error('❌ Failed to retrieve prices from IPFS:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get IPFS node information
+   * @returns {Object} Node info
+   */
+  getIPFSNodeInfo() {
+    return priceStorageService.getNodeInfo();
   }
 
   // Cleanup method

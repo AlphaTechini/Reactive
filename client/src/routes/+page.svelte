@@ -3,6 +3,7 @@
 	import { walletAddress, walletBalance } from '$lib/stores/wallet.js';
 	import { portfolioBalance, portfolioLoading, refreshPortfolioBalance } from '$lib/stores/portfolio.js';
 	import { globalPricesStore, globalRefreshingStore, globalLastUpdatedStore } from '$lib/stores/globalStorage.js';
+	import { INITIAL_TOKEN_LIST } from '$lib/config/network.js';
 	import PriceChart from '$lib/components/PriceChart.svelte';
 	import PortfolioOverview from '$lib/components/PortfolioOverview.svelte';
 	import ActiveSettings from '$lib/components/ActiveSettings.svelte';
@@ -22,6 +23,22 @@
 	$: tokenPrice = selectedToken && $globalPricesStore[selectedToken.address];
 	$: currentPrice = tokenPrice?.price || selectedToken?.price || 0;
 	$: priceChange = tokenPrice?.change24h || selectedToken?.change || 0;
+	
+	// Update selected token when prices become available (avoid circular dependency)
+	$: {
+		const availablePrices = $globalPricesStore;
+		const hasPricesData = availablePrices && Object.keys(availablePrices).length > 0;
+		
+		// Only set selectedToken if it's null and we have price data
+		if (!selectedToken && hasPricesData) {
+			const tokensWithPrices = INITIAL_TOKEN_LIST.filter(token => availablePrices[token.address]);
+			
+			if (tokensWithPrices.length > 0) {
+				selectedToken = tokensWithPrices[0];
+				console.log('🔄 Set initial token with price data:', selectedToken.symbol, selectedToken.address);
+			}
+		}
+	}
 	
 	const DASHBOARD_STORAGE_KEY='reactive.dashboard.v1';
 	const DASHBOARD_TIMEFRAME_LABELS=[ {key:'1h',label:'1H'},{key:'1d',label:'24H'},{key:'7d',label:'7D'},{key:'30d',label:'30D'} ];
@@ -54,15 +71,12 @@
 		}; 
 		window.addEventListener('tokenSelected', handleTokenSelection); 
 		
-	if(!selectedToken){ 
-			selectedToken={ 
-				symbol:'ETH', 
-				name:'Ethereum', 
-				address:'0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // Real WETH address
-				price:2587.45, 
-				change:2.34 
-			}; 
-		} 
+		// Set default token to one that has price data (simplified to avoid circular dependency)
+		if(!selectedToken){ 
+			// Use fallback token initially - the reactive statement will update it when prices load
+			selectedToken = INITIAL_TOKEN_LIST.find(t => t.symbol === 'ETH') || INITIAL_TOKEN_LIST[0];
+			console.log('⚠️ Set initial fallback token:', selectedToken.symbol);
+		}
 		
 		return ()=> window.removeEventListener('tokenSelected', handleTokenSelection); 
 	});

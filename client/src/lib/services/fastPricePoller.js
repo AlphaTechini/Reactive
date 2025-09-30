@@ -101,17 +101,37 @@ class FastPricePoller {
         const priceData = await response.json();
         
         // Remove metadata for storage
-        const prices = { ...priceData };
-        delete prices._metadata;
+        const rawPrices = { ...priceData };
+        delete rawPrices._metadata;
         
-        if (Object.keys(prices).length > 0) {
-          // Store in global storage
-          await globalStorage.storePrices(prices, { 
+        // Backend returns data keyed by symbol (BTC, ETH, etc)
+        // We need to transform it to be keyed by address for frontend lookups
+        const pricesByAddress = {};
+        
+        for (const [symbol, priceInfo] of Object.entries(rawPrices)) {
+          if (priceInfo && priceInfo.address) {
+            // Use lowercase address as key for consistent lookups
+            const address = priceInfo.address.toLowerCase();
+            
+            // Normalize field names: priceUSD -> price
+            pricesByAddress[address] = {
+              price: priceInfo.priceUSD || priceInfo.price || priceInfo.current,
+              change24h: priceInfo.priceChangePercent || priceInfo.change24h || 0,
+              timestamp: priceInfo.ts || Date.now(),
+              symbol: symbol,
+              source: 'fast-poll'
+            };
+          }
+        }
+        
+        if (Object.keys(pricesByAddress).length > 0) {
+          // Store in global storage keyed by address
+          await globalStorage.storePrices(pricesByAddress, { 
             source: 'fast-poll',
             updateCharts: true 
           });
           
-          console.log(`⚡ Fast update: ${Object.keys(prices).length} prices`);
+          console.log(`⚡ Fast update: ${Object.keys(pricesByAddress).length} prices stored by address`);
         }
       }
       
