@@ -60,6 +60,9 @@ class EnhancedPriceService {
     // Local cache (browser) so every visitor instantly sees last known prices without waiting
     this.LOCAL_CACHE_KEY = 'reactivePriceCacheV1';
     this.LOCAL_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes aligns with backend refresh cadence
+    
+    // Track backend cache expiration to avoid redundant fetches
+    this.backendCacheExpiresAt = 0; // Timestamp when backend cache will expire
   }
 
   // Initialize and fetch all prices at startup
@@ -86,14 +89,18 @@ class EnhancedPriceService {
         console.log(`📊 Cache age: ${Math.round(dataAge)}s`);
       }
       
-      // Only fetch from backend if we have no data or it's very old (>15 minutes)
-      const hasRecentData = stats.lastUpdated && (Date.now() - stats.lastUpdated) < 15 * 60 * 1000;
+      // Only fetch from backend if:
+      // 1. We have no data, OR
+      // 2. Backend cache has expired (we track this from backend's _metadata)
+      const now = Date.now();
+      const needsFetch = stats.priceCount === 0 || now >= this.backendCacheExpiresAt;
       
-      if (!hasRecentData || stats.priceCount === 0) {
-        console.log('📡 Fetching fresh data from backend...');
+      if (needsFetch) {
+        console.log('📡 Fetching from backend (cache expired or empty)...');
         await this.fetchFromBackend();
       } else {
-        console.log('✅ Using cached data (recent enough)');
+        const secondsUntilExpiry = Math.round((this.backendCacheExpiresAt - now) / 1000);
+        console.log(`✅ Using cached data (fresh for ${secondsUntilExpiry}s more)`);
       }
       
       // Start monitoring backend refresh cycles
@@ -152,9 +159,16 @@ class EnhancedPriceService {
             batchPrices = await response.json();
             console.log('✅ Loaded prices from backend');
             
-            // Log cache metadata if available
+            // Track backend cache expiration from metadata
             if (batchPrices._metadata) {
               console.log(`📊 Backend data: ${batchPrices._metadata.tokenCount} tokens, age: ${Math.round(batchPrices._metadata.cacheAge / 1000)}s`);
+              
+              // Calculate when backend cache will expire
+              if (batchPrices._metadata.nextFetchIn) {
+                this.backendCacheExpiresAt = Date.now() + batchPrices._metadata.nextFetchIn;
+                const expiresInMinutes = Math.round(batchPrices._metadata.nextFetchIn / 60000);
+                console.log(`⏰ Backend cache fresh for ${expiresInMinutes} more minutes`);
+              }
             }
           } else {
             console.warn('⚠️ Backend endpoint error:', response.status, response.statusText);
@@ -517,10 +531,16 @@ class EnhancedPriceService {
     }
   }
 
-  // Handle app mode changes by re-fetching data
+  // Handle app mode changes - only fetch if cache expired
   async handleModeChange() {
-    console.log('🔄 App mode changed, refreshing prices...');
-    await this.fetchFromBackend();
+    const now = Date.now();
+    if (now >= this.backendCacheExpiresAt) {
+      console.log('🔄 App mode changed + cache expired, refreshing...');
+      await this.fetchFromBackend();
+    } else {
+      const secondsLeft = Math.round((this.backendCacheExpiresAt - now) / 1000);
+      console.log(`🔄 App mode changed, but cache still fresh (${secondsLeft}s remaining)`);
+    }
   }
 
   // User wallet management

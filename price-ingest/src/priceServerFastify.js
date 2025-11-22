@@ -517,6 +517,206 @@ fastify.get('/api/ipfs/:cid', async (request, reply) => {
   }
 });
 
+// Portfolio management endpoints
+fastify.post('/api/portfolios', async (request, reply) => {
+  try {
+    const { walletAddress, portfolio } = request.body;
+    
+    if (!walletAddress || !portfolio) {
+      reply.code(400);
+      return { error: 'Wallet address and portfolio data required' };
+    }
+    
+    // Validate wallet address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      reply.code(400);
+      return { error: 'Invalid wallet address format' };
+    }
+    
+    // Get or create user data
+    let userData = userDataCache[walletAddress] || {
+      walletAddress,
+      portfolios: [],
+      createdAt: new Date().toISOString()
+    };
+    
+    // Add portfolio with unique ID
+    const portfolioId = `portfolio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newPortfolio = {
+      ...portfolio,
+      id: portfolioId,
+      createdAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString()
+    };
+    
+    userData.portfolios = userData.portfolios || [];
+    userData.portfolios.push(newPortfolio);
+    userData.lastUpdated = new Date().toISOString();
+    
+    // Update cache
+    userDataCache[walletAddress] = userData;
+    
+    // Store to IPFS if available
+    if (ipfsNode) {
+      try {
+        lastUsersCID = await updateUserWallets(ipfsNode.fs, userDataCache);
+        console.log(`📁 Portfolio created and stored to IPFS: ${lastUsersCID}`);
+        persistCacheToDisk();
+      } catch (e) {
+        console.warn('⚠️ Failed to store portfolio to IPFS:', e.message);
+      }
+    }
+    
+    return {
+      success: true,
+      portfolioId,
+      portfolio: newPortfolio,
+      ipfs: {
+        usersCID: lastUsersCID,
+        stored: !!ipfsNode
+      }
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to create portfolio', message: error.message };
+  }
+});
+
+fastify.get('/api/portfolios/:walletAddress', async (request, reply) => {
+  try {
+    const { walletAddress } = request.params;
+    
+    // Check local cache first
+    let userData = userDataCache[walletAddress];
+    
+    // If not in cache and we have IPFS CID, try to fetch from IPFS
+    if (!userData && lastUsersCID && ipfsNode) {
+      try {
+        const ipfsUserData = await fetchJSON(ipfsNode.fs, lastUsersCID);
+        userData = ipfsUserData[walletAddress];
+        if (userData) {
+          userDataCache[walletAddress] = userData;
+        }
+      } catch (e) {
+        console.warn('Could not fetch user data from IPFS:', e.message);
+      }
+    }
+    
+    if (!userData || !userData.portfolios) {
+      return {
+        success: true,
+        portfolios: [],
+        walletAddress
+      };
+    }
+    
+    return {
+      success: true,
+      portfolios: userData.portfolios,
+      walletAddress,
+      source: userDataCache[walletAddress] ? 'cache' : 'ipfs'
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to fetch portfolios', message: error.message };
+  }
+});
+
+fastify.get('/api/portfolios/:walletAddress/:portfolioId', async (request, reply) => {
+  try {
+    const { walletAddress, portfolioId } = request.params;
+    
+    // Get user data
+    let userData = userDataCache[walletAddress];
+    
+    if (!userData && lastUsersCID && ipfsNode) {
+      try {
+        const ipfsUserData = await fetchJSON(ipfsNode.fs, lastUsersCID);
+        userData = ipfsUserData[walletAddress];
+        if (userData) {
+          userDataCache[walletAddress] = userData;
+        }
+      } catch (e) {
+        console.warn('Could not fetch user data from IPFS:', e.message);
+      }
+    }
+    
+    if (!userData || !userData.portfolios) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    const portfolio = userData.portfolios.find(p => p.id === portfolioId);
+    
+    if (!portfolio) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    return {
+      success: true,
+      portfolio,
+      walletAddress
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to fetch portfolio', message: error.message };
+  }
+});
+
+fastify.put('/api/portfolios/:walletAddress/:portfolioId', async (request, reply) => {
+  try {
+    const { walletAddress, portfolioId } = request.params;
+    const updates = request.body;
+    
+    let userData = userDataCache[walletAddress];
+    
+    if (!userData || !userData.portfolios) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    const portfolioIndex = userData.portfolios.findIndex(p => p.id === portfolioId);
+    
+    if (portfolioIndex === -1) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    // Update portfolio
+    userData.portfolios[portfolioIndex] = {
+      ...userData.portfolios[portfolioIndex],
+      ...updates,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    userData.lastUpdated = new Date().toISOString();
+    userDataCache[walletAddress] = userData;
+    
+    // Store to IPFS if available
+    if (ipfsNode) {
+      try {
+        lastUsersCID = await updateUserWallets(ipfsNode.fs, userDataCache);
+        persistCacheToDisk();
+      } catch (e) {
+        console.warn('⚠️ Failed to store updated portfolio to IPFS:', e.message);
+      }
+    }
+    
+    return {
+      success: true,
+      portfolio: userData.portfolios[portfolioIndex],
+      ipfs: {
+        usersCID: lastUsersCID,
+        stored: !!ipfsNode
+      }
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to update portfolio', message: error.message };
+  }
+});
+
 // User wallet management endpoints
 fastify.post('/api/users/:walletAddress', async (request, reply) => {
   try {
@@ -534,9 +734,12 @@ fastify.post('/api/users/:walletAddress', async (request, reply) => {
       return { error: 'Invalid wallet address format' };
     }
     
-    // Update user data cache
+    // Update user data cache - preserve existing portfolios
+    const existingData = userDataCache[walletAddress] || {};
     userDataCache[walletAddress] = {
+      ...existingData,
       ...userData,
+      portfolios: userData.portfolios || existingData.portfolios || [],
       walletAddress,
       lastUpdated: new Date().toISOString(),
       timestamp: Date.now()
@@ -565,6 +768,205 @@ fastify.post('/api/users/:walletAddress', async (request, reply) => {
   } catch (error) {
     reply.code(500);
     return { error: 'Failed to store user data', message: error.message };
+  }
+});
+
+// Portfolio management endpoints
+fastify.post('/api/users/:walletAddress/portfolios', async (request, reply) => {
+  try {
+    const { walletAddress } = request.params;
+    const portfolioData = request.body;
+    
+    if (!walletAddress || !portfolioData) {
+      reply.code(400);
+      return { error: 'Wallet address and portfolio data required' };
+    }
+    
+    // Validate wallet address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      reply.code(400);
+      return { error: 'Invalid wallet address format' };
+    }
+    
+    // Initialize user data if not exists
+    if (!userDataCache[walletAddress]) {
+      userDataCache[walletAddress] = {
+        walletAddress,
+        portfolios: [],
+        createdAt: new Date().toISOString()
+      };
+    }
+    
+    // Generate portfolio ID
+    const portfolioId = `portfolio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create portfolio object
+    const portfolio = {
+      id: portfolioId,
+      ...portfolioData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Add portfolio to user's portfolios
+    userDataCache[walletAddress].portfolios = userDataCache[walletAddress].portfolios || [];
+    userDataCache[walletAddress].portfolios.push(portfolio);
+    userDataCache[walletAddress].lastUpdated = new Date().toISOString();
+    
+    // Store to IPFS if available
+    if (ipfsNode) {
+      try {
+        lastUsersCID = await updateUserWallets(ipfsNode.fs, userDataCache);
+        console.log(`📁 Portfolio created and stored in IPFS: ${lastUsersCID}`);
+        persistCacheToDisk();
+      } catch (e) {
+        console.warn('⚠️ Failed to store portfolio to IPFS:', e.message);
+      }
+    }
+    
+    return {
+      success: true,
+      portfolio,
+      ipfs: {
+        usersCID: lastUsersCID,
+        stored: !!ipfsNode
+      }
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to create portfolio', message: error.message };
+  }
+});
+
+fastify.get('/api/users/:walletAddress/portfolios', async (request, reply) => {
+  try {
+    const { walletAddress } = request.params;
+    
+    // Check local cache first
+    let userData = userDataCache[walletAddress];
+    
+    // If not in cache and we have IPFS CID, try to fetch from IPFS
+    if (!userData && lastUsersCID && ipfsNode) {
+      try {
+        const ipfsUserData = await fetchJSON(ipfsNode.fs, lastUsersCID);
+        userData = ipfsUserData[walletAddress];
+        if (userData) {
+          userDataCache[walletAddress] = userData;
+        }
+      } catch (e) {
+        console.warn('Could not fetch user data from IPFS:', e.message);
+      }
+    }
+    
+    if (!userData) {
+      return {
+        success: true,
+        portfolios: [],
+        walletAddress
+      };
+    }
+    
+    return {
+      success: true,
+      portfolios: userData.portfolios || [],
+      walletAddress
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to fetch portfolios', message: error.message };
+  }
+});
+
+fastify.get('/api/users/:walletAddress/portfolios/:portfolioId', async (request, reply) => {
+  try {
+    const { walletAddress, portfolioId } = request.params;
+    
+    // Check local cache first
+    let userData = userDataCache[walletAddress];
+    
+    // If not in cache and we have IPFS CID, try to fetch from IPFS
+    if (!userData && lastUsersCID && ipfsNode) {
+      try {
+        const ipfsUserData = await fetchJSON(ipfsNode.fs, lastUsersCID);
+        userData = ipfsUserData[walletAddress];
+        if (userData) {
+          userDataCache[walletAddress] = userData;
+        }
+      } catch (e) {
+        console.warn('Could not fetch user data from IPFS:', e.message);
+      }
+    }
+    
+    if (!userData || !userData.portfolios) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    const portfolio = userData.portfolios.find(p => p.id === portfolioId);
+    
+    if (!portfolio) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    return {
+      success: true,
+      portfolio
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to fetch portfolio', message: error.message };
+  }
+});
+
+fastify.put('/api/users/:walletAddress/portfolios/:portfolioId', async (request, reply) => {
+  try {
+    const { walletAddress, portfolioId } = request.params;
+    const updates = request.body;
+    
+    if (!userDataCache[walletAddress] || !userDataCache[walletAddress].portfolios) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    const portfolioIndex = userDataCache[walletAddress].portfolios.findIndex(p => p.id === portfolioId);
+    
+    if (portfolioIndex === -1) {
+      reply.code(404);
+      return { error: 'Portfolio not found' };
+    }
+    
+    // Update portfolio
+    userDataCache[walletAddress].portfolios[portfolioIndex] = {
+      ...userDataCache[walletAddress].portfolios[portfolioIndex],
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    
+    userDataCache[walletAddress].lastUpdated = new Date().toISOString();
+    
+    // Store to IPFS if available
+    if (ipfsNode) {
+      try {
+        lastUsersCID = await updateUserWallets(ipfsNode.fs, userDataCache);
+        console.log(`📝 Portfolio updated in IPFS: ${lastUsersCID}`);
+        persistCacheToDisk();
+      } catch (e) {
+        console.warn('⚠️ Failed to store portfolio update to IPFS:', e.message);
+      }
+    }
+    
+    return {
+      success: true,
+      portfolio: userDataCache[walletAddress].portfolios[portfolioIndex],
+      ipfs: {
+        usersCID: lastUsersCID,
+        stored: !!ipfsNode
+      }
+    };
+  } catch (error) {
+    reply.code(500);
+    return { error: 'Failed to update portfolio', message: error.message };
   }
 });
 
@@ -690,6 +1092,10 @@ const start = async () => {
     console.log(`   GET  /api/prices  - Unified batch price data`);
     console.log(`   GET  /api/health  - Server health check`);
     console.log(`   POST /api/refresh - Manual price refresh`);
+    console.log(`   POST /api/users/:walletAddress/portfolios - Create portfolio`);
+    console.log(`   GET  /api/users/:walletAddress/portfolios - List portfolios`);
+    console.log(`   GET  /api/users/:walletAddress/portfolios/:id - Get portfolio`);
+    console.log(`   PUT  /api/users/:walletAddress/portfolios/:id - Update portfolio`);
     console.log('');
     
     // Start background fetching (immediate on startup)

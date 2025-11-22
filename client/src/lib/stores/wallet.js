@@ -24,6 +24,7 @@ export const signer = writable(null);
 export const networkCorrect = writable(false);
 export const isConnecting = writable(false);
 export const isMetaMaskInstalledStore = writable(false);
+export const connectionError = writable(null);
 // Read-only RPC provider (fallback when user denies permissions or wallet not available)
 export const rpcProvider = writable(null);
 
@@ -45,6 +46,9 @@ class WalletService {
   }
   async init() {
     if (typeof window === 'undefined') return;
+    
+    console.log('🔧 Initializing wallet service...');
+    
     // Resolve MetaMask provider explicitly (handles multi-provider injectors)
     const resolveMetaMaskProvider = () => {
       if (window.ethereum?.providers?.length) {
@@ -54,56 +58,92 @@ class WalletService {
       if (window.ethereum?.isMetaMask) return window.ethereum;
       return null;
     };
+    
     const mmProvider = resolveMetaMaskProvider();
+    
     // Initialize read-only RPC provider immediately (use Reactive RPC URL)
     try {
       const rpcUrl = REACTIVE_NETWORK.rpcUrls && REACTIVE_NETWORK.rpcUrls.length ? REACTIVE_NETWORK.rpcUrls[0] : 'https://mainnet-rpc.rnk.dev/';
       const readonly = new ethers.JsonRpcProvider(rpcUrl);
       this.rpcProvider = readonly;
       rpcProvider.set(this.rpcProvider);
+      console.log('✅ Read-only RPC provider initialized');
     } catch (e) {
-      console.warn('Failed to initialize read-only RPC provider:', e);
+      console.warn('⚠️ Failed to initialize read-only RPC provider:', e);
     }
 
     if (mmProvider) {
-      this.isMetaMaskInstalled = true; this.ethereum = mmProvider;
+      console.log('✅ MetaMask detected');
+      this.isMetaMaskInstalled = true; 
+      this.ethereum = mmProvider;
       isMetaMaskInstalledStore.set(true);
-      mmProvider.removeListener?.('accountsChanged', this.handleAccountsChanged.bind(this)); // defensive cleanup
-      mmProvider.on?.('accountsChanged', this.handleAccountsChanged.bind(this));
-      mmProvider.on?.('chainChanged', this.handleChainChanged.bind(this));
-      mmProvider.on?.('disconnect', this.handleDisconnect.bind(this));
+      
+      // Remove any existing listeners before adding new ones (defensive cleanup)
+      try {
+        mmProvider.removeListener?.('accountsChanged', this.handleAccountsChanged.bind(this));
+        mmProvider.removeListener?.('chainChanged', this.handleChainChanged.bind(this));
+        mmProvider.removeListener?.('disconnect', this.handleDisconnect.bind(this));
+      } catch (e) {
+        console.warn('⚠️ Error removing old listeners:', e);
+      }
+      
+      // Add event listeners
+      try {
+        mmProvider.on?.('accountsChanged', this.handleAccountsChanged.bind(this));
+        mmProvider.on?.('chainChanged', this.handleChainChanged.bind(this));
+        mmProvider.on?.('disconnect', this.handleDisconnect.bind(this));
+        console.log('✅ MetaMask event listeners registered');
+      } catch (e) {
+        console.warn('⚠️ Error adding event listeners:', e);
+      }
+      
       // 1. Passive check first (no popup) to see if already authorized
       try {
         const accounts = await mmProvider.request({ method:'eth_accounts' });
         if (accounts.length>0) {
+          console.log('✅ Found existing authorized account, auto-connecting...');
           await this.connect({ silentAuth:true });
           return;
         }
-      } catch {/* ignore passive failure */}
+      } catch (e) {
+        console.warn('⚠️ Passive account check failed:', e);
+      }
 
       // 2. If user previously connected (we stored address) and AUTO_CONNECT enabled, attempt a polite connect
       if (this.AUTO_CONNECT && !this._autoTriedRequest) {
         const remembered = window.localStorage?.getItem('reactiveWalletAddress');
         if (remembered && this.AGGRESSIVE_CONNECT) {
           // Aggressive mode: immediately request accounts which shows popup
+          console.log('🔄 Aggressive auto-connect enabled, requesting accounts...');
           this._autoTriedRequest = true;
           setTimeout(() => {
-            this.connect({ silentAuth:true }).catch(()=>{/* ignore */});
+            this.connect({ silentAuth:true }).catch((e)=>{
+              console.warn('⚠️ Auto-connect failed:', e);
+            });
           }, 300); // slight delay so UI renders first
         } else if (remembered) {
           // Polite mode: schedule a passive retry using eth_accounts (some extensions refresh later)
+          console.log('🔄 Polite auto-connect enabled, scheduling retry...');
           setTimeout(async () => {
             try {
               const accs = await mmProvider.request({ method:'eth_accounts' });
               if (accs.length>0) {
                 this._autoTriedRequest = true;
+                console.log('✅ Retry found authorized account, connecting...');
                 await this.connect({ silentAuth:true });
               }
-            } catch {/* ignore */}
+            } catch (e) {
+              console.warn('⚠️ Auto-connect retry failed:', e);
+            }
           }, this.AUTO_CONNECT_RETRY_MS);
         }
       }
-    } else { this.isMetaMaskInstalled = false; this.ethereum=null; isMetaMaskInstalledStore.set(false); }
+    } else { 
+      console.log('❌ MetaMask not detected');
+      this.isMetaMaskInstalled = false; 
+      this.ethereum=null; 
+      isMetaMaskInstalledStore.set(false); 
+    }
   }
   getInstallUrl(){
     // Basic user-agent detection for mobile vs desktop
@@ -126,142 +166,94 @@ class WalletService {
     
     try {
       isConnecting.set(true);
-      console.log('🔗 Launching MetaMask...');
+      console.log('🔗 Connecting to MetaMask...');
       
       const eth = this.ethereum || window.ethereum;
-      
-      // Force open MetaMask extension UI with better browser compatibility
-      try {
-        console.log('🚀 Opening MetaMask extension...');
-        
-        // First, check if MetaMask is already unlocked
-        const accounts = await eth.request({ method: 'eth_accounts' });
-        if (accounts.length > 0) {
-          console.log('📱 MetaMask already connected');
-        } else {
-          // Try multiple methods to open MetaMask
-          
-          // Method 1: Use MetaMask's own method to request focus
-          try {
-            await eth.request({ 
-              method: 'wallet_requestPermissions', 
-              params: [{ eth_accounts: {} }] 
-            });
-          } catch (permError) {
-            console.log('Permission request method failed, trying direct account request...');
-          }
-          
-          // Method 2: For Edge/Chrome - try the extension URL
-          if (navigator.userAgent.includes('Edg') || navigator.userAgent.includes('Chrome')) {
-            try {
-              // Use a more compatible approach for opening extensions
-              const popup = window.open('', '_blank', 'width=360,height=640,scrollbars=yes,resizable=yes');
-              if (popup) {
-                popup.location.href = 'chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/home.html';
-                // Close popup after a short delay
-                setTimeout(() => {
-                  try { popup.close(); } catch {}
-                }, 2000);
-              }
-            } catch (popupError) {
-              console.log('Popup method failed:', popupError);
-            }
-          }
-          
-          // Method 3: Mobile detection and deep linking
-          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-          if (isMobile) {
-            const dappUrl = window.location.hostname;
-            const metamaskDeepLink = `https://metamask.app.link/dapp/${dappUrl}`;
-            console.log('📱 Mobile detected, using deep link:', metamaskDeepLink);
-            window.location.href = metamaskDeepLink;
-            return;
-          }
-        }
-      } catch (openError) {
-        console.log('Extension opening failed, proceeding with connection:', openError);
-        // Continue anyway - MetaMask should still prompt
+      if (!eth) {
+        throw new Error('Ethereum provider not found');
       }
       
-      // First, try to switch to Reactive network before requesting accounts
-      try {
-        console.log('🌐 Switching to Reactive Network...');
-        await eth.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: REACTIVE_NETWORK.chainId }]
-        });
-        console.log('✅ Already on Reactive Network');
-      } catch (switchError) {
-        if (switchError.code === 4902) {
-          // Network not added, add it first
-          console.log('➕ Adding Reactive Network...');
-          try {
-            await eth.request({
-              method: 'wallet_addEthereumChain',
-              params: [REACTIVE_NETWORK]
-            });
-            console.log('✅ Reactive Network added successfully');
-          } catch (addError) {
-            console.error('Failed to add Reactive Network:', addError);
-            notify.error('Failed to add Reactive Network to MetaMask');
-            return false;
-          }
-        } else {
-          console.warn('Network switch failed:', switchError);
-          // Continue anyway - user might manually switch later
-        }
-      }
+      // Request accounts - this triggers MetaMask popup immediately
+      console.log('📱 Requesting accounts from MetaMask...');
+      const accounts = await eth.request({ method: 'eth_requestAccounts' });
       
-      // Now request accounts - this should trigger MetaMask popup
-      console.log('📱 Requesting MetaMask accounts...');
-      const accounts = await eth.request({ method:'eth_requestAccounts' });
-      
-      if (!accounts || accounts.length===0) {
+      if (!accounts || accounts.length === 0) {
         throw new Error('No accounts returned by MetaMask');
       }
       
       console.log('✅ MetaMask accounts received:', accounts.length);
       
-      // create an Ethers BrowserProvider backed by the injected provider
-      try {
-        this.provider = new ethers.BrowserProvider(eth);
-        this.signer = await this.provider.getSigner();
-        this.rpcProvider = this.provider; // when connected, rpcProvider becomes interactive provider
-        console.log('✅ Ethers provider created successfully');
-      } catch (e) {
-        // If the injected provider is not a valid EIP-1193 provider, fall back to the read-only RPC
-        console.warn('Injected provider invalid for BrowserProvider, falling back to read-only RPC:', e);
-        const rpcUrl = REACTIVE_NETWORK.rpcUrls && REACTIVE_NETWORK.rpcUrls.length ? REACTIVE_NETWORK.rpcUrls[0] : 'https://mainnet-rpc.rnk.dev/';
-        this.rpcProvider = new ethers.JsonRpcProvider(rpcUrl);
-        this.provider = null;
-        this.signer = null;
-      }
-      rpcProvider.set(this.rpcProvider);
+      // Create ethers.js v6 BrowserProvider
+      this.provider = new ethers.BrowserProvider(eth);
+      this.signer = await this.provider.getSigner();
       this.address = accounts[0];
-      provider.set(this.provider); signer.set(this.signer); walletAddress.set(this.address); walletConnected.set(true);
-      if (typeof window !== 'undefined') localStorage.setItem('reactiveWalletAddress', this.address);
-  this._autoTriedRequest = true; // mark that we have an active connection
       
-      // Store wallet address to IPFS after successful connection
-      this.storeWalletToIPFS();
+      console.log('✅ Ethers provider created successfully');
+      console.log('✅ Connected address:', this.address);
       
-      await this.checkNetwork();
-      await this.updateBalance();
-      // Only attempt authentication if not a silent auto-init or if forced later
-      if (!options.silentAuth) {
-        try { await authenticate(); notify.success('Wallet connected & authenticated'); }
-        catch (authErr) { console.error('Auth signature failed:', authErr); notify.error('Authentication signature declined'); }
+      // Update stores
+      provider.set(this.provider);
+      signer.set(this.signer);
+      walletAddress.set(this.address);
+      walletConnected.set(true);
+      rpcProvider.set(this.provider);
+      
+      // Save to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('reactiveWalletAddress', this.address);
       }
-      aggregate.set({ isConnected:true, provider:get(provider), address:this.address });
+      
+      this._autoTriedRequest = true;
+      
+      // Check network - let MetaMask handle the switch prompt naturally
+      const isCorrectNetwork = await this.checkNetwork();
+      if (!isCorrectNetwork) {
+        console.log('⚠️ Wrong network detected');
+        notify.info('Please switch to Reactive Network in MetaMask', { duration: 5000 });
+        // Don't auto-switch - let the user see MetaMask's prompt
+      }
+      
+      await this.updateBalance();
+      
+      // Store wallet to IPFS (non-blocking)
+      this.storeWalletToIPFS().catch(err => {
+        console.warn('IPFS storage failed (non-critical):', err);
+      });
+      
+      aggregate.set({ isConnected: true, provider: this.provider, address: this.address });
+      
+      // Clear any previous connection errors
+      connectionError.set(null);
+      
+      notify.success('Wallet connected successfully!');
       return true;
     } catch (error) {
+      console.error('❌ Connection error:', error);
+      
+      // Handle specific error cases
       if (error?.code === 4001) {
-        notify.error('Connection request rejected in MetaMask');
+        notify.error('Connection rejected by user');
+      } else if (error?.code === -32002) {
+        notify.error('Connection request already pending - please check MetaMask');
+      } else if (error.message?.includes('timeout') || error.message?.includes('blocked')) {
+        notify.error('Connection timeout - please check if MetaMask popup is blocked');
+      } else if (error.message?.includes('User rejected')) {
+        notify.error('Connection rejected by user');
       } else {
-        console.error('Failed to connect wallet:', error);
-        notify.error(`Failed to connect wallet: ${error.message || 'Unknown error'}`);
+        notify.error(`Connection failed: ${error.message || 'Unknown error'}`);
       }
-      aggregate.set({ isConnected:false, provider:null });
+      
+      // Reset connection state
+      this.provider = null;
+      this.signer = null;
+      this.address = '';
+      provider.set(null);
+      signer.set(null);
+      walletAddress.set('');
+      walletConnected.set(false);
+      connectionError.set(error.message || 'Connection failed');
+      aggregate.set({ isConnected: false, provider: null });
+      
       // ensure we still expose a read-only rpcProvider
       try { 
         const rpcUrl = REACTIVE_NETWORK.rpcUrls && REACTIVE_NETWORK.rpcUrls.length ? REACTIVE_NETWORK.rpcUrls[0] : 'https://mainnet-rpc.rnk.dev/'; 
@@ -271,9 +263,42 @@ class WalletService {
         console.warn('Failed to set fallback RPC provider:', rpcError);
       }
       return false;
-    } finally { isConnecting.set(false); }
+    } finally { 
+      isConnecting.set(false); 
+    }
   }
-  async disconnect() { this.provider=null; this.signer=null; this.address=''; provider.set(null); signer.set(null); walletAddress.set(''); walletConnected.set(false); networkCorrect.set(false); walletBalance.set('0'); clearSession(); aggregate.set({ isConnected:false, provider:null }); notify.success('Wallet disconnected & session cleared'); }
+  async disconnect() { 
+    console.log('🔌 Disconnecting wallet...');
+    this.provider=null; 
+    this.signer=null; 
+    this.address=''; 
+    provider.set(null); 
+    signer.set(null); 
+    walletAddress.set(''); 
+    walletConnected.set(false); 
+    networkCorrect.set(false); 
+    walletBalance.set('0'); 
+    connectionError.set(null);
+    
+    // Clear localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('reactiveWalletAddress');
+    }
+    
+    clearSession(); 
+    aggregate.set({ isConnected:false, provider:null }); 
+    
+    // Ensure read-only RPC provider is still available
+    try { 
+      const rpcUrl = REACTIVE_NETWORK.rpcUrls && REACTIVE_NETWORK.rpcUrls.length ? REACTIVE_NETWORK.rpcUrls[0] : 'https://mainnet-rpc.rnk.dev/'; 
+      this.rpcProvider = new ethers.JsonRpcProvider(rpcUrl); 
+      rpcProvider.set(this.rpcProvider); 
+    } catch(rpcError) {
+      console.warn('Failed to set fallback RPC provider:', rpcError);
+    }
+    
+    notify.success('Wallet disconnected & session cleared'); 
+  }
   async checkNetwork() { if (!this.provider) return false; try { const { appMode } = await import('$lib/stores/appMode.js'); const mode = get(appMode); if (mode === 'simulation') { networkCorrect.set(true); return true; } const net = await this.provider.getNetwork(); const isCorrect = Number(net.chainId) === ENV_CHAIN_ID_DEC; networkCorrect.set(isCorrect); return isCorrect; } catch (e) { console.error('Failed to check network:', e); return false; } }
   async switchToReactiveNetwork() { if (!window.ethereum) return false; try { await window.ethereum.request({ method:'wallet_switchEthereumChain', params:[{ chainId: REACTIVE_NETWORK.chainId }] }); networkCorrect.set(true); notify.success('Switched to Reactive Network'); return true; } catch (switchError) { if (switchError.code === 4902) { try { await window.ethereum.request({ method:'wallet_addEthereumChain', params:[REACTIVE_NETWORK] }); networkCorrect.set(true); notify.success('Reactive Network added and switched'); return true; } catch (addError) { console.error('Failed to add network:', addError); notify.error('Failed to add Reactive Network to MetaMask'); return false; } } else { console.error('Failed to switch network:', switchError); notify.error('Failed to switch to Reactive Network'); return false; } } }
   
@@ -311,9 +336,46 @@ class WalletService {
     }
   }
   async updateBalance() { if (!this.provider || !this.address) return; try { const balance = await this.provider.getBalance(this.address); walletBalance.set(ethers.formatEther(balance)); } catch (e) { console.error('Failed to get balance:', e); } }
-  async handleAccountsChanged(accounts) { if (accounts.length===0) { await this.disconnect(); } else if (accounts[0] !== this.address) { this.address = accounts[0]; walletAddress.set(this.address); await this.updateBalance(); notify.success('Account switched'); } }
-  async handleChainChanged() { window.location.reload(); }
-  async handleDisconnect() { await this.disconnect(); }
+  async handleAccountsChanged(accounts) { 
+    console.log('👤 Accounts changed:', accounts);
+    if (accounts.length===0) { 
+      console.log('🔌 No accounts - disconnecting');
+      await this.disconnect(); 
+      notify.info('Wallet disconnected');
+    } else if (accounts[0] !== this.address) { 
+      console.log('🔄 Account switched to:', accounts[0]);
+      this.address = accounts[0]; 
+      walletAddress.set(this.address); 
+      
+      // Save new address to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('reactiveWalletAddress', this.address);
+      }
+      
+      await this.updateBalance(); 
+      await this.checkNetwork();
+      
+      aggregate.set({ isConnected: true, provider: this.provider, address: this.address });
+      notify.success('Account switched successfully'); 
+    } 
+  }
+  
+  async handleChainChanged(chainId) { 
+    console.log('⛓️ Chain changed to:', chainId);
+    notify.info('Network changed - reloading page...');
+    // Small delay to show notification before reload
+    setTimeout(() => {
+      window.location.reload(); 
+    }, 500);
+  }
+  
+  async handleDisconnect(error) { 
+    console.log('🔌 Disconnect event:', error);
+    await this.disconnect(); 
+    if (error) {
+      notify.error('Wallet disconnected due to error');
+    }
+  }
   // Formatting helpers
   formatAddress(addr){ if(!addr) return ''; return `${addr.slice(0,6)}...${addr.slice(-4)}`; }
   formatBalance(bal){ if(!bal) return '0'; const num = parseFloat(bal); if(num===0) return '0'; if(num<0.0001) return '< 0.0001'; if(num<1) return num.toFixed(4); if(num<10) return num.toFixed(3); if(num<100) return num.toFixed(2); return num.toFixed(1); }

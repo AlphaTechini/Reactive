@@ -18,26 +18,16 @@
   let selectedToken = null;
   let query = '';
   let expandedCategories = { core: true, altcoins: true, memecoins: false, stablecoins: false, reactive: true };
-  let priceData = {};
-  let unsubscribe;
   
-  // Subscribe to price updates
-  onMount(() => {
-    unsubscribe = globalPricesStore.subscribe(prices => {
-      priceData = prices;
-      console.log('💰 Sidebar received price update:', Object.keys(prices).length, 'addresses');
-      if (Object.keys(prices).length > 0) {
-        const firstKey = Object.keys(prices)[0];
-        console.log('💰 Sample price data:', firstKey, prices[firstKey]);
-        console.log('💰 First token address we are looking for:', INITIAL_TOKEN_LIST[0].address);
-        console.log('💰 Does first token address exist in prices?', prices[INITIAL_TOKEN_LIST[0].address]);
-      }
-    });
-  });
+  // Use Svelte 5 store subscription with $ prefix
+  $: priceData = $globalPricesStore;
   
-  onDestroy(() => {
-    if (unsubscribe) unsubscribe();
-  });
+  // Log when prices update
+  $: if (priceData && Object.keys(priceData).length > 0) {
+    console.log('💰 Sidebar prices updated:', Object.keys(priceData).length, 'tokens');
+    const firstKey = Object.keys(priceData)[0];
+    console.log('💰 Sample:', firstKey, '=', priceData[firstKey]);
+  }
   
   function toggleCategory(cat) { 
     expandedCategories[cat] = !expandedCategories[cat]; 
@@ -49,11 +39,14 @@
   }
   
   function formatPrice(price) { 
-    return priceService.formatPrice(price, 4);
+    if (!price || price === null) return '$0.00';
+    return `$${Number(price).toFixed(2)}`;
   }
   
   function formatChange(change) { 
-    return priceService.formatChange(change);
+    if (!change) return '+0.00%';
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${Number(change).toFixed(2)}%`;
   }
   
   function filtered(list) { 
@@ -63,18 +56,13 @@
   }
   
   function getTokenWithPrice(token) {
-    const priceInfo = priceData[token.address];
-    
-    // Debug: log first token to see data structure
-    if (token.symbol === 'BTC' && priceInfo) {
-      console.log('🔍 BTC Price Data:', priceInfo);
-      console.log('🔍 All Price Data Keys:', Object.keys(priceData));
-    }
+    // Backend returns data keyed by symbol (ETH, BTC, etc.)
+    const priceInfo = priceData[token.symbol];
     
     return {
       ...token,
-      price: priceInfo?.price || priceInfo?.current || null,
-      change: priceInfo?.change24h || priceInfo?.change || 0
+      price: priceInfo?.priceUSD || 0,
+      change: priceInfo?.priceChangePercent || 0
     };
   }
 </script>

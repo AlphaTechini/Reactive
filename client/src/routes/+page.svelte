@@ -1,102 +1,256 @@
 <script>
 	import { onMount } from 'svelte';
-	import { walletAddress, walletBalance } from '$lib/stores/wallet.js';
-	import { portfolioBalance, portfolioLoading, refreshPortfolioBalance } from '$lib/stores/portfolio.js';
-	import { globalPricesStore, globalRefreshingStore, globalLastUpdatedStore } from '$lib/stores/globalStorage.js';
-	import { INITIAL_TOKEN_LIST } from '$lib/config/network.js';
-	import PriceChart from '$lib/components/PriceChart.svelte';
-	import PortfolioOverview from '$lib/components/PortfolioOverview.svelte';
-	import ActiveSettings from '$lib/components/ActiveSettings.svelte';
-	import QuickActions from '$lib/components/QuickActions.svelte';
-	import EventsMonitor from '$lib/EventsMonitor.svelte';
-	import StrategyDrawer from '$lib/components/StrategyDrawer.svelte';
-	import DepositModal from '$lib/components/DepositModal.svelte';
-	import PendingTransactions from '$lib/components/PendingTransactions.svelte';
+	import { walletAddress, walletBalance, walletService } from '$lib/stores/wallet.js';
+	import { portfolios, portfoliosLoading, fetchPortfolios } from '$lib/stores/portfolios.js';
+	import { goto } from '$app/navigation';
 	
-	let selectedToken=null; 
-	let portfolioChange=5.67; 
-	let totalAssets=8; 
-	let timeframe='1d';
-	let depositOpen=false;
-	
-	// Reactive token data from price service
-	$: tokenPrice = selectedToken && $globalPricesStore[selectedToken.address];
-	$: currentPrice = tokenPrice?.price || selectedToken?.price || 0;
-	$: priceChange = tokenPrice?.change24h || selectedToken?.change || 0;
-	
-	// Update selected token when prices become available (avoid circular dependency)
-	$: {
-		const availablePrices = $globalPricesStore;
-		const hasPricesData = availablePrices && Object.keys(availablePrices).length > 0;
-		
-		// Only set selectedToken if it's null and we have price data
-		if (!selectedToken && hasPricesData) {
-			const tokensWithPrices = INITIAL_TOKEN_LIST.filter(token => availablePrices[token.address]);
-			
-			if (tokensWithPrices.length > 0) {
-				selectedToken = tokensWithPrices[0];
-				console.log('🔄 Set initial token with price data:', selectedToken.symbol, selectedToken.address);
-			}
+	onMount(async () => {
+		console.log('🏠 Landing page mounted');
+		// Fetch user's portfolios from backend when wallet is connected
+		if ($walletAddress) {
+			console.log('👛 Wallet connected, fetching portfolios...');
+			await fetchPortfolios();
 		}
+	});
+	
+	// Watch for wallet connection changes and fetch portfolios
+	$effect(() => {
+		if ($walletAddress) {
+			console.log('👛 Wallet address changed, fetching portfolios...');
+			fetchPortfolios();
+		}
+	});
+	
+	function createPortfolio() {
+		goto('/create-portfolio');
 	}
 	
-	const DASHBOARD_STORAGE_KEY='reactive.dashboard.v1';
-	const DASHBOARD_TIMEFRAME_LABELS=[ {key:'1h',label:'1H'},{key:'1d',label:'24H'},{key:'7d',label:'7D'},{key:'30d',label:'30D'} ];
-	onMount(async()=>{ 
-		try { 
-			if(typeof localStorage!=='undefined'){ 
-				const raw=localStorage.getItem(DASHBOARD_STORAGE_KEY); 
-				if(raw){ 
-					const parsed=JSON.parse(raw); 
-					if(parsed?.timeframe && ['1h','1d','7d','30d'].includes(parsed.timeframe)) timeframe=parsed.timeframe; 
-					if(parsed?.token?.symbol) selectedToken=parsed.token; 
-				} 
-			} 
-		} catch(e){ 
-			console.warn('Persisted dashboard state load failed', e);
-		} 
-		
-		const wallet=$walletAddress; 
-		if(wallet && window.ethereum){ 
-			try { 
-				const { priceDisplayService } = await import('$lib/priceDisplayService.js'); 
-				await priceDisplayService.initialize(); 
-			} catch(e){ 
-				console.error('Failed to initialize price display service:', e); 
-			} 
-		}
-		
-		const handleTokenSelection = e => { 
-			selectedToken = e.detail; 
-		}; 
-		window.addEventListener('tokenSelected', handleTokenSelection); 
-		
-		// Set default token to one that has price data (simplified to avoid circular dependency)
-		if(!selectedToken){ 
-			// Use fallback token initially - the reactive statement will update it when prices load
-			selectedToken = INITIAL_TOKEN_LIST.find(t => t.symbol === 'ETH') || INITIAL_TOKEN_LIST[0];
-			console.log('⚠️ Set initial fallback token:', selectedToken.symbol);
-		}
-		
-		return ()=> window.removeEventListener('tokenSelected', handleTokenSelection); 
-	});
-	$: (async()=>{ try { if(typeof localStorage!=='undefined'){ localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify({ timeframe, token: selectedToken && { symbol:selectedToken.symbol, name:selectedToken.name, address:selectedToken.address, price:selectedToken.price, change:selectedToken.change } })); } } catch { /* ignore persistence errors */ } })();
+	function viewPortfolio(portfolioId) {
+		goto(`/portfolio/${portfolioId}`);
+	}
+	
+	function goToDashboard() {
+		goto('/dashboard');
+	}
 </script>
-<svelte:head><title>Dashboard - Reactive Portfolio Manager</title></svelte:head>
-<div class="space-y-6" role="main" aria-label="Dashboard">
-	<div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white"><div class="flex items-center justify-between"><div><h1 class="text-2xl font-bold mb-2">Welcome to Reactive Portfolio</h1><p class="text-blue-100">Address: <span class="font-mono">{$walletAddress}</span></p></div><div class="text-right"><div class="text-3xl font-bold">{#if $portfolioLoading}<span class="animate-pulse">Loading...</span>{:else}{parseFloat($portfolioBalance||'0').toFixed(4)} REACT{/if}</div><div class="flex items-center justify-end mt-1"><span class="text-sm">Portfolio Balance</span><div class="ml-4"><button class="px-3 py-1 bg-white text-blue-600 rounded" on:click={()=> depositOpen=true}>Deposit</button></div></div></div></div></div>
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-		<div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"><div class="flex items-center"><div class="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" /></svg></div><div class="ml-4"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Portfolio Balance</p><p class="text-2xl font-bold text-gray-900 dark:text-white">{#if $portfolioLoading}<span class="animate-pulse text-sm">Loading...</span>{:else}{$portfolioBalance ? parseFloat($portfolioBalance).toFixed(4) : '0'} REACT{/if}</p><button class="mt-1 text-xs text-blue-600 hover:underline" on:click={refreshPortfolioBalance} disabled={$portfolioLoading}>Refresh</button></div></div></div>
-		<div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"><div class="flex items-center"><div class="w-10 h-10 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg></div><div class="ml-4"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Assets</p><p class="text-2xl font-bold text-gray-900 dark:text-white">{totalAssets}</p></div></div></div>
-		<div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"><div class="flex items-center"><div class="w-10 h-10 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg></div><div class="ml-4"><p class="text-sm font-medium text-gray-500 dark:text-gray-400">24h Change</p><p class="text-2xl font-bold" class:text-green-600={portfolioChange>=0} class:text-red-600={portfolioChange<0}>{portfolioChange>=0?'+':''}{portfolioChange}%</p></div></div></div>
+
+<svelte:head>
+	<title>Home - Reactive Portfolio Manager</title>
+</svelte:head>
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+		<!-- Hero Section -->
+		<div class="text-center mb-12">
+			<h1 class="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+				Welcome to <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">Reactive Portfolio</span>
+			</h1>
+			<p class="text-xl text-gray-600 dark:text-gray-300 mb-8">
+				Automated portfolio management on the Reactive Network
+			</p>
+			
+			<!-- Wallet Info Card -->
+			<div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-8">
+				<div class="flex items-center justify-between mb-6">
+					<div class="text-left">
+						<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Connected Wallet</p>
+						<p class="text-lg font-mono font-semibold text-gray-900 dark:text-white">
+							{walletService.formatAddress($walletAddress)}
+						</p>
+					</div>
+					<div class="text-right">
+						<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Balance</p>
+						<p class="text-2xl font-bold text-gray-900 dark:text-white">
+							{walletService.formatBalance($walletBalance)} REACT
+						</p>
+					</div>
+				</div>
+				
+				<!-- Action Buttons -->
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+					<button
+						onclick={createPortfolio}
+						class="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-xl transition-all transform hover:scale-105 shadow-lg"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						Create Portfolio
+					</button>
+					
+					<button
+						onclick={() => goto('/portfolios')}
+						class="flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-semibold py-4 px-6 rounded-xl transition-all"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+						</svg>
+						My Portfolios
+					</button>
+					
+					<button
+						onclick={goToDashboard}
+						class="flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-semibold py-4 px-6 rounded-xl transition-all"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+						</svg>
+						View Dashboard
+					</button>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Portfolios Section -->
+		<div class="mb-12">
+			<div class="flex items-center justify-between mb-6">
+				<h2 class="text-3xl font-bold text-gray-900 dark:text-white">Your Portfolios</h2>
+				{#if $portfolios.length > 0}
+					<div class="flex items-center gap-3">
+						<button
+							onclick={() => goto('/portfolios')}
+							class="flex items-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-medium py-2 px-4 rounded-lg transition-colors"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+							</svg>
+							View All
+						</button>
+						<button
+							onclick={createPortfolio}
+							class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+							</svg>
+							New Portfolio
+						</button>
+					</div>
+				{/if}
+			</div>
+			
+			{#if $portfoliosLoading}
+				<div class="flex items-center justify-center py-12">
+					<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+				</div>
+			{:else if $portfolios.length === 0}
+				<!-- Empty State -->
+				<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
+					<div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 rounded-full flex items-center justify-center">
+						<svg class="w-12 h-12 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+						</svg>
+					</div>
+					<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">No Portfolios Yet</h3>
+					<p class="text-gray-600 dark:text-gray-400 mb-8 max-w-md mx-auto">
+						Create your first portfolio to start automated trading with custom risk management and rebalancing strategies.
+					</p>
+					<button
+						onclick={createPortfolio}
+						class="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-8 rounded-xl transition-all transform hover:scale-105 shadow-lg"
+					>
+						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						Create Your First Portfolio
+					</button>
+				</div>
+			{:else}
+				<!-- Portfolio Grid -->
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					{#each $portfolios as portfolio}
+						<button
+							onclick={() => viewPortfolio(portfolio.id)}
+							class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 text-left"
+						>
+							<div class="flex items-start justify-between mb-4">
+								<div>
+									<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-1">
+										{portfolio.name}
+									</h3>
+									<p class="text-sm text-gray-500 dark:text-gray-400">
+										{portfolio.description || 'No description'}
+									</p>
+								</div>
+								<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+									<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+									</svg>
+								</div>
+							</div>
+							
+							<div class="space-y-2">
+								<div class="flex justify-between items-center">
+									<span class="text-sm text-gray-500 dark:text-gray-400">Balance</span>
+									<span class="text-lg font-bold text-gray-900 dark:text-white">
+										{portfolio.balance || '0'} REACT
+									</span>
+								</div>
+								<div class="flex justify-between items-center">
+									<span class="text-sm text-gray-500 dark:text-gray-400">Performance</span>
+									<span class="text-sm font-semibold" class:text-green-600={portfolio.performance >= 0} class:text-red-600={portfolio.performance < 0}>
+										{portfolio.performance >= 0 ? '+' : ''}{portfolio.performance || 0}%
+									</span>
+								</div>
+								<div class="flex justify-between items-center">
+									<span class="text-sm text-gray-500 dark:text-gray-400">Assets</span>
+									<span class="text-sm font-medium text-gray-900 dark:text-white">
+										{portfolio.assetCount || 0} tokens
+									</span>
+								</div>
+							</div>
+							
+							<div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+								<div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+									<span>Created {new Date(portfolio.createdAt).toLocaleDateString()}</span>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+									</svg>
+								</div>
+							</div>
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+		
+		<!-- Features Section -->
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+			<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+				<div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mb-4">
+					<svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+					</svg>
+				</div>
+				<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Risk Management</h3>
+				<p class="text-gray-600 dark:text-gray-400 text-sm">
+					Set stop-loss, take-profit, and auto-buy thresholds to protect your investments
+				</p>
+			</div>
+			
+			<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+				<div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mb-4">
+					<svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+					</svg>
+				</div>
+				<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Auto-Rebalancing</h3>
+				<p class="text-gray-600 dark:text-gray-400 text-sm">
+					Maintain your target allocation automatically with smart rebalancing
+				</p>
+			</div>
+			
+			<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+				<div class="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mb-4">
+					<svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+					</svg>
+				</div>
+				<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Reactive Network</h3>
+				<p class="text-gray-600 dark:text-gray-400 text-sm">
+					Built on Reactive Network for fast, automated, and decentralized trading
+				</p>
+			</div>
+		</div>
 	</div>
-	<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-		<div class="xl:col-span-2"><div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"><div class="flex items-center justify-between mb-4">				<div><h2 class="text-lg font-semibold text-gray-900 dark:text-white">{selectedToken ? `${selectedToken.name} (${selectedToken.symbol})` : 'Select a token'}</h2>{#if selectedToken}<div class="flex items-center mt-1"><span class="text-2xl font-bold text-gray-900 dark:text-white">${currentPrice ? currentPrice.toFixed(6) : 'Loading...'}</span><span class="ml-2 text-sm font-medium px-2 py-1 rounded-full" class:bg-green-100={priceChange>=0} class:text-green-800={priceChange>=0} class:bg-red-100={priceChange<0} class:text-red-800={priceChange<0}>{priceChange>=0?'+':''}{priceChange.toFixed(2)}%</span></div>					<div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{#if $globalRefreshingStore}Fetching live price...{:else if $globalLastUpdatedStore}Last updated: {new Date($globalLastUpdatedStore).toLocaleTimeString()}{:else}Price from global storage{/if}</div>{/if}</div><div class="flex items-center gap-1 rounded-md bg-gray-100 dark:bg-gray-700 p-1" role="radiogroup" aria-label="Timeframe selector">{#each DASHBOARD_TIMEFRAME_LABELS as tf (tf.key)}<button type="button" on:click={()=> timeframe=tf.key} role="radio" aria-checked={timeframe===tf.key} aria-label={`${tf.label} timeframe`} class="px-3 py-1 text-xs font-medium rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" class:bg-white={timeframe===tf.key} class:text-gray-900={timeframe===tf.key} class:dark:bg-gray-900={timeframe===tf.key} class:dark:text-white={timeframe===tf.key} class:text-gray-500={timeframe!==tf.key} class:hover:text-gray-700={timeframe!==tf.key} class:dark:text-gray-300={timeframe!==tf.key} class:dark:hover:text-gray-100={timeframe!==tf.key}>{tf.label}</button>{/each}</div></div><div class="h-80"><PriceChart {selectedToken} {timeframe} /></div></div></div>
-		<div class="space-y-6"><PendingTransactions /><ActiveSettings /><QuickActions /><StrategyDrawer {selectedToken} automationAddress={null} /></div>
-	</div>
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><PortfolioOverview /><div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"><h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h3><div class="space-y-4"><div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700"><div class="flex items-center"><div class="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mr-3"><svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg></div><div><p class="text-sm font-medium text-gray-900 dark:text-white">Stop-loss Updated</p><p class="text-xs text-gray-500 dark:text-gray-400">Set to 15% for ETH</p></div></div><span class="text-xs text-gray-500 dark:text-gray-400">2 min ago</span></div><div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700"><div class="flex items-center"><div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3"><svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg></div><div><p class="text-sm font-medium text-gray-900 dark:text-white">Portfolio Rebalanced</p><p class="text-xs text-gray-500 dark:text-gray-400">ETH: 60%, BTC: 40%</p></div></div><span class="text-xs text-gray-500 dark:text-gray-400">1 hour ago</span></div><div class="flex items-center justify-between py-2"><div class="flex items-center"><div class="w-8 h-8 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center mr-3"><svg class="w-4 h-4 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></div><div><p class="text-sm font-medium text-gray-900 dark:text-white">Take-profit Set</p><p class="text-xs text-gray-500 dark:text-gray-400">25% for LINK position</p></div></div><span class="text-xs text-gray-500 dark:text-gray-400">3 hours ago</span></div></div></div></div>
-	<div class="mt-8"><EventsMonitor maxEvents={10} /></div>
 </div>
-{#if depositOpen}
-	<DepositModal bind:isOpen={depositOpen} on:deposited={()=> { refreshPortfolioBalance(); }} />
-{/if}

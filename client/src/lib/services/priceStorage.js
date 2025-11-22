@@ -5,9 +5,8 @@
  * Every user can read from the same CID for consistent price data.
  */
 
-import { createHelia } from 'helia';
-import { unixfs } from '@helia/unixfs';
-import { json } from '@helia/json';
+// Lazy load Helia to avoid native module issues on startup
+let createHelia, unixfs, json;
 
 class PriceStorageService {
   constructor() {
@@ -15,6 +14,7 @@ class PriceStorageService {
     this.fs = null;
     this.jsonStorage = null;
     this.isInitialized = false;
+    this.heliaAvailable = true;
   }
 
   /**
@@ -24,6 +24,23 @@ class PriceStorageService {
   async initialize() {
     try {
       console.log('🌐 Initializing Helia IPFS node...');
+      
+      // Lazy load Helia modules
+      if (!createHelia) {
+        try {
+          const heliaModule = await import('helia');
+          const unixfsModule = await import('@helia/unixfs');
+          const jsonModule = await import('@helia/json');
+          createHelia = heliaModule.createHelia;
+          unixfs = unixfsModule.unixfs;
+          json = jsonModule.json;
+        } catch (error) {
+          console.warn('⚠️ Helia not available (native module issue):', error.message);
+          this.heliaAvailable = false;
+          this.isInitialized = false;
+          return false;
+        }
+      }
       
       // Create Helia node with optimized configuration
       this.helia = await createHelia({
@@ -63,6 +80,10 @@ class PriceStorageService {
    * @returns {string} CID string for the stored data
    */
   async storePrices(priceData) {
+    if (!this.heliaAvailable) {
+      console.warn('⚠️ Helia not available, skipping IPFS storage');
+      return null;
+    }
     if (!this.isInitialized) {
       throw new Error('PriceStorageService not initialized. Call initialize() first.');
     }
@@ -103,6 +124,10 @@ class PriceStorageService {
    * @returns {Object} Parsed JSON price data
    */
   async getPrices(cidString) {
+    if (!this.heliaAvailable) {
+      console.warn('⚠️ Helia not available, cannot retrieve from IPFS');
+      return null;
+    }
     if (!this.isInitialized) {
       throw new Error('PriceStorageService not initialized. Call initialize() first.');
     }

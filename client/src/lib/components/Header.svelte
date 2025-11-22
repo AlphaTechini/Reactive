@@ -1,7 +1,7 @@
 <script>
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { walletService, walletAddress, walletBalance, walletConnected } from '$lib/stores/wallet.js';
+  import { walletService, walletAddress, walletBalance, walletConnected, isConnecting, connectionError } from '$lib/stores/wallet.js';
   import ModeBadge from './ModeBadge.svelte';
   import { appMode } from '$lib/stores/appMode.js';
   import { priceService } from '$lib/priceService.js';
@@ -65,9 +65,8 @@
         </div>
       </div>
       <nav class="hidden md:flex items-center gap-2">
-        <a href="/" on:click|preventDefault={go('/')} class="nav-link { $page.route.id === '/' ? 'nav-link-active' : '' }">Dashboard</a>
-        <a href="/settings" on:click|preventDefault={go('/settings')} class="nav-link { $page.route.id === '/settings' ? 'nav-link-active' : '' }">Settings</a>
-        <a href="/events" on:click|preventDefault={go('/events')} class="nav-link { $page.route.id === '/events' ? 'nav-link-active' : '' }">Events</a>
+        <a href="/" on:click|preventDefault={go('/')} class="nav-link { $page.url.pathname === '/' ? 'nav-link-active' : '' }">Home</a>
+        <a href="/dashboard" on:click|preventDefault={go('/dashboard')} class="nav-link { $page.url.pathname === '/dashboard' ? 'nav-link-active' : '' }">Dashboard</a>
       </nav>
       <div class="flex items-center gap-3">
         <div class="flex items-center gap-2">
@@ -100,8 +99,18 @@
         </div>
         
         <ThemeToggle />
-        {#if $walletConnected}
-          <div class="hidden sm:flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400"><div class="w-2 h-2 bg-green-500 rounded-full"></div><span>{formattedBalance} REACT</span></div>
+        {#if $isConnecting}
+          <!-- Connecting State -->
+          <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+            <div class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+            <span>Connecting...</span>
+          </div>
+        {:else if $walletConnected}
+          <!-- Connected State -->
+          <div class="hidden sm:flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+            <div class="w-2 h-2 bg-green-500 rounded-full" title="Wallet Connected"></div>
+            <span>{formattedBalance} REACT</span>
+          </div>
           <div class="flex items-center space-x-2">
             <div class="hidden sm:block text-sm text-gray-600 dark:text-gray-400">{shortAddress}</div>
             <button on:click={() => walletService.disconnect()} class="btn btn-danger h-9 px-3">
@@ -110,7 +119,28 @@
             </button>
           </div>
         {:else}
-          <button on:click={handleWalletConnect} class="btn btn-primary h-9 px-4">Connect Wallet</button>
+          <!-- Disconnected State -->
+          <div class="flex items-center space-x-2">
+            {#if $connectionError}
+              <div class="hidden sm:flex items-center space-x-1 text-xs text-red-600 dark:text-red-400" title={$connectionError}>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Connection failed</span>
+              </div>
+            {/if}
+            <button on:click={handleWalletConnect} class="btn btn-primary h-9 px-4" disabled={$isConnecting}>
+              {#if $isConnecting}
+                <svg class="w-4 h-4 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Connecting...
+              {:else}
+                Connect Wallet
+              {/if}
+            </button>
+          </div>
         {/if}
       </div>
     </div>

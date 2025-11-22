@@ -9,6 +9,9 @@ interface IPortfolioManager {
     function getTokenPrice(address token) external view returns (uint256 price);
     function updateTokenPrice(address token) external;
     function automationStopLossOrTakeProfit(address user, address token, uint256 sellPortionBps, uint256 minAmountOut, string calldata reason) external;
+    function checkAndExecuteTrailingStop(address user, address token) external returns (bool triggered);
+    function updateTrailingStopLoss(address user, address token) external;
+    function shouldTriggerTrailingStop(address user, address token) external view returns (bool shouldTrigger, uint256 currentPrice, uint256 stopPrice);
 }
 
 /**
@@ -27,6 +30,7 @@ contract AutomationController is Ownable, ReentrancyGuard {
         uint256 coolDown;          // Minimum seconds between executions
         uint256 sellPortionBps;    // % of balance to liquidate on trigger (basis points)
         uint256 slippageBps;       // Acceptable slippage vs expected USDC out (basis points)
+        bool useTrailingStop;      // Whether to use trailing stop-loss instead of fixed
     }
 
     event StrategySet(address indexed user, address indexed token, Strategy data);
@@ -65,7 +69,8 @@ contract AutomationController is Ownable, ReentrancyGuard {
         uint256 coolDown,
         uint256 sellPortionBps,
         uint256 slippageBps,
-        bool enabled
+        bool enabled,
+        bool useTrailingStop
     ) external {
         require(token != address(0), "token=0");
         require(sellPortionBps > 0 && sellPortionBps <= MAX_BPS, "portion invalid");
@@ -78,6 +83,7 @@ contract AutomationController is Ownable, ReentrancyGuard {
         s.coolDown = coolDown;
         s.sellPortionBps = sellPortionBps;
         s.slippageBps = slippageBps;
+        s.useTrailingStop = useTrailingStop;
         if (enabled && s.entryPrice == 0) {
             // capture entry price from portfolio
             s.entryPrice = portfolio.getTokenPrice(token);
@@ -90,6 +96,13 @@ contract AutomationController is Ownable, ReentrancyGuard {
         Strategy storage s = strategies[user][token];
         if (!s.enabled) return;
         if (block.timestamp < s.lastExecution + s.coolDown) return;
+        
+        // Handle trailing stop-loss separately
+        if (s.useTrailingStop) {
+            _evaluateTrailingStop(user, token, s);
+            return;
+        }
+        
         uint256 current = portfolio.getTokenPrice(token);
         if (current == 0 || s.entryPrice == 0) return;
 
@@ -113,19 +126,35 @@ contract AutomationController is Ownable, ReentrancyGuard {
         uint256 portion = balance * s.sellPortionBps / MAX_BPS;
         if (portion == 0) return;
 
-        // Move tokens from user? PortfolioManager currently expects user to call executeSwap transferring tokens first.
-        // For automation, user must pre-approve this controller to transfer their tokens.
-    // Execute automated liquidation through portfolio manager (will transferFrom user internally again if needed)
-    // User must have approved the portfolio manager contract to spend the token. To avoid double transferFrom we first
-    // try allowance logic by approving portfolio for portion if we pulled funds (legacy path). For simplicity we call
-    // automationStopLossOrTakeProfit which pulls directly.
         // Compute minAmountOut using current price * portion * (1 - slippage)
         uint256 expectedValue = portion * current / 1e18; // token amount * price (USDC precision assumed 18)
         uint256 minOut = expectedValue - (expectedValue * s.slippageBps / MAX_BPS);
         if (minOut == 0) { minOut = 1; }
         portfolio.automationStopLossOrTakeProfit(user, token, s.sellPortionBps, minOut, reason);
-    s.lastExecution = block.timestamp;
-    emit StrategyExecuted(user, token, current, reason, portion);
+        s.lastExecution = block.timestamp;
+        emit StrategyExecuted(user, token, current, reason, portion);
+    }
+    
+    /**
+     * @dev Evaluate trailing stop-loss strategy
+     * @param user User address
+     * @param token Token address
+     * @param s Strategy configuration
+     */
+    function _evaluateTrailingStop(address user, address token, Strategy storage s) internal {
+        // Update trailing stop-loss first
+        portfolio.updateTrailingStopLoss(user, token);
+        
+        // Check if trailing stop should be triggered and execute
+        bool triggered = portfolio.checkAndExecuteTrailingStop(user, token);
+        
+        if (triggered) {
+            s.lastExecution = block.timestamp;
+            uint256 current = portfolio.getTokenPrice(token);
+            uint256 balance = IERC20(token).balanceOf(user);
+            uint256 portion = balance * s.sellPortionBps / MAX_BPS;
+            emit StrategyExecuted(user, token, current, "TRAILING_STOP", portion);
+        }
     }
 
     function batchEvaluate(address[] calldata users, address[] calldata tokens) external onlyOperator {

@@ -1,0 +1,298 @@
+{
+  "prices": {
+    "ETH": {
+      "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "priceUSD": 2730.21,
+      "ts": 1763735042269,
+      "apiSymbol": "ETH",
+      "priceChange": -12.860000000000127,
+      "priceChangePercent": -0.4688177844531903,
+      "previousPrice": 2743.07
+    },
+    "USDC": {
+      "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "priceUSD": 1,
+      "ts": 1763735042269,
+      "apiSymbol": "USDC",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 1
+    },
+    "WBTC": {
+      "address": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+      "priceUSD": 83828.02,
+      "ts": 1763735042269,
+      "apiSymbol": "BTC",
+      "priceChange": -256.06999999999243,
+      "priceChangePercent": -0.30454037143054347,
+      "previousPrice": 84084.09
+    },
+    "BTC": {
+      "address": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+      "priceUSD": 83828.02,
+      "ts": 1763735042269,
+      "apiSymbol": "BTC",
+      "priceChange": -256.06999999999243,
+      "priceChangePercent": -0.30454037143054347,
+      "previousPrice": 84084.09
+    },
+    "UNI": {
+      "address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+      "priceUSD": 6.277,
+      "ts": 1763735042568,
+      "apiSymbol": "UNI",
+      "priceChange": -0.03200000000000003,
+      "priceChangePercent": -0.5072119194801082,
+      "previousPrice": 6.309
+    },
+    "YFI": {
+      "address": "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e",
+      "priceUSD": 4025,
+      "ts": 1763735042737,
+      "apiSymbol": "YFI",
+      "priceChange": -7,
+      "priceChangePercent": -0.1736111111111111,
+      "previousPrice": 4032
+    },
+    "CRV": {
+      "address": "0xD533a949740bb3306d119CC777fa900bA034cd52",
+      "priceUSD": 0.3764,
+      "ts": 1763735042737,
+      "apiSymbol": "CRV",
+      "priceChange": -0.0029000000000000137,
+      "priceChangePercent": -0.7645663063538132,
+      "previousPrice": 0.3793
+    },
+    "SAND": {
+      "address": "0x3845badAde8e6dFF049820680d1F14bD0F3903A5d",
+      "priceUSD": 0.1526,
+      "ts": 1763735042737,
+      "apiSymbol": "SAND",
+      "priceChange": -0.0003999999999999837,
+      "priceChangePercent": -0.2614379084967214,
+      "previousPrice": 0.153
+    },
+    "DAI": {
+      "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      "priceUSD": 1.00014,
+      "ts": 1763735042800,
+      "apiSymbol": "DAI",
+      "priceChange": -0.000180000000000069,
+      "priceChangePercent": -0.017994241842617262,
+      "previousPrice": 1.00032
+    },
+    "MKR": {
+      "address": "0x9f8F72aA9304c8B593d555F12ef6589cC3A579A2",
+      "priceUSD": 1813.7,
+      "ts": 1763735042801,
+      "apiSymbol": "MKR",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 1813.7
+    },
+    "COMP": {
+      "address": "0xc00e94Cb662C3520282E6f5717214004A7f26888",
+      "priceUSD": 28.76,
+      "ts": 1763735042801,
+      "apiSymbol": "COMP",
+      "priceChange": 0.07000000000000028,
+      "priceChangePercent": 0.24398745207389433,
+      "previousPrice": 28.69
+    },
+    "MANA": {
+      "address": "0x0f5D2fB29fb7D3CFeE444a200298f468908cC39D",
+      "priceUSD": 0.165,
+      "ts": 1763735042802,
+      "apiSymbol": "MANA",
+      "priceChange": -0.0006999999999999784,
+      "priceChangePercent": -0.42245021122509263,
+      "previousPrice": 0.1657
+    },
+    "BAL": {
+      "address": "0xba100000625a3754423978a60c9317c58a424e3d",
+      "priceUSD": 0.967,
+      "ts": 1763735042802,
+      "apiSymbol": "BAL",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.967
+    },
+    "SNX": {
+      "address": "0xC011A72400E58ec99Ee497CF89E3775d4bd732F",
+      "priceUSD": 0.603,
+      "ts": 1763735042802,
+      "apiSymbol": "SNX",
+      "priceChange": -0.0020000000000000018,
+      "priceChangePercent": -0.3305785123966945,
+      "previousPrice": 0.605
+    },
+    "AAVE": {
+      "address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
+      "priceUSD": 154.44,
+      "ts": 1763735042803,
+      "apiSymbol": "AAVE",
+      "priceChange": -0.8499999999999943,
+      "priceChangePercent": -0.547362998261314,
+      "previousPrice": 155.29
+    },
+    "GRT": {
+      "address": "0xc944E90C64B2c07662A292be6244BDf05Cda44a7",
+      "priceUSD": 0.05002,
+      "ts": 1763735042803,
+      "apiSymbol": "GRT",
+      "priceChange": -0.0001999999999999988,
+      "priceChangePercent": -0.3982477100756647,
+      "previousPrice": 0.05022
+    },
+    "LDO": {
+      "address": "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32",
+      "priceUSD": 0.6068,
+      "ts": 1763735047930,
+      "apiSymbol": "LDO",
+      "priceChange": 0.00009999999999998899,
+      "priceChangePercent": 0.01648261084555612,
+      "previousPrice": 0.6067
+    },
+    "FXS": {
+      "address": "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",
+      "priceUSD": 0.821,
+      "ts": 1763735047930,
+      "apiSymbol": "FXS",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.821
+    },
+    "SUSHI": {
+      "address": "0x6B3595068778DD592e39A122f4f5A5cF09C90fE2",
+      "priceUSD": 0.4085,
+      "ts": 1763735047931,
+      "apiSymbol": "SUSHI",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.4085
+    },
+    "RNDR": {
+      "address": "0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24",
+      "priceUSD": 7.03,
+      "ts": 1763735047937,
+      "apiSymbol": "RNDR",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 7.03
+    },
+    "OP": {
+      "address": "0x4200000000000000000000000000000000000042",
+      "priceUSD": 0.3207,
+      "ts": 1763735047938,
+      "apiSymbol": "OP",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.3207
+    },
+    "ARB": {
+      "address": "0x912ce59144191c1204e64559fe8253a0e49e6548",
+      "priceUSD": 0.2032,
+      "ts": 1763735047939,
+      "apiSymbol": "ARB",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.2032
+    },
+    "VINU": {
+      "address": "0xafcdd4f666c84fed1d8bd825aa762e3714f652c9",
+      "priceUSD": 1.074e-8,
+      "ts": 1763735047939,
+      "apiSymbol": "VINU",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 1.074e-8
+    },
+    "FLOKI": {
+      "address": "0xcf0c122c6b73ff809c693db761e7baebe62b6a2e",
+      "priceUSD": 0.00004577,
+      "ts": 1763735047940,
+      "apiSymbol": "FLOKI",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.00004577
+    },
+    "ELON": {
+      "address": "0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3",
+      "priceUSD": 5.27e-8,
+      "ts": 1763735047940,
+      "apiSymbol": "ELON",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 5.27e-8
+    },
+    "IMX": {
+      "address": "0xf57e7e7c23978c3caec3c3548e3d615c346e79ff",
+      "priceUSD": 0.309,
+      "ts": 1763735047940,
+      "apiSymbol": "IMX",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.309
+    },
+    "AKITA": {
+      "address": "0x3301ee63fb29f863f2333bd4466acb46cd8323e6",
+      "priceUSD": 2.412e-8,
+      "ts": 1763735047940,
+      "apiSymbol": "AKITA",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 2.412e-8
+    },
+    "1INCH": {
+      "address": "0x111111111117dc0aa78b770fa6a738034120c302",
+      "priceUSD": 0.1653,
+      "ts": 1763735047941,
+      "apiSymbol": "1INCH",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.1653
+    },
+    "PEPE": {
+      "address": "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+      "priceUSD": 0.00000421,
+      "ts": 1763735047946,
+      "apiSymbol": "PEPE",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.00000421
+    },
+    "DOGE": {
+      "address": "0x420693bF3bF2a5c07cc5bA2eF2E4A4f9E3e7d3F0",
+      "priceUSD": 0.1392,
+      "ts": 1763735048975,
+      "apiSymbol": "DOGE",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.1392
+    },
+    "SAITAMA": {
+      "address": "0x2c297021ff013dfb9d45c88dbd8e24a3e61040b3",
+      "priceUSD": 0.0006258,
+      "ts": 1763735048977,
+      "apiSymbol": "SAITAMA",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.0006258
+    },
+    "SHIB": {
+      "address": "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE",
+      "priceUSD": 0.00000786,
+      "ts": 1763735048981,
+      "apiSymbol": "SHIB",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "previousPrice": 0.00000786
+    }
+  },
+  "metadata": {
+    "lastUpdated": 1763735049437,
+    "timestamp": "2025-11-21T14:24:09.437Z",
+    "tokenCount": 32,
+    "version": "1.0"
+  }
+}

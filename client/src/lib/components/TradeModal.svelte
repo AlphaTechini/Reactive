@@ -20,12 +20,29 @@
   let slippageTolerance = 1; // 1% default
   let loadingBalances = false;
   
-  $: appMode.subscribe(v=> mode=v);
+  // Subscribe to appMode once (not on every reactive update)
+  let unsubscribeAppMode = null;
+  onMount(() => {
+    unsubscribeAppMode = appMode.subscribe(v => mode = v);
+    loadTokens();
+    return () => {
+      if (unsubscribeAppMode) unsubscribeAppMode();
+    };
+  });
+  
   $: isAmountValid = amount && Number(amount) > 0;
   $: hasInsufficientBalance = tokenInBalance !== null && Number(amount) > tokenInBalance;
   $: canSwap = isAmountValid && !hasInsufficientBalance && !isProcessing && !$hasSwapPending && tokenIn !== tokenOut;
   $: tokenInMeta = tokens.find(t => t.address === tokenIn);
   $: tokenOutMeta = tokens.find(t => t.address === tokenOut);
+  
+  // Update tokenIn/tokenOut when default props change and modal opens
+  $: if (isOpen && defaultTokenIn) {
+    tokenIn = defaultTokenIn;
+  }
+  $: if (isOpen && defaultTokenOut) {
+    tokenOut = defaultTokenOut;
+  }
   async function loadTokens(){
     try {
       await secureContractService.initialize();
@@ -174,14 +191,24 @@
     dispatch('close');
   }
 
-  // Load balances when tokens change
+  // Load balances when tokens change (debounced to prevent excessive calls)
+  let balanceLoadTimeout = null;
   $: if (tokenIn && tokenOut && isOpen) {
-    loadTokenBalances();
+    // Clear previous timeout
+    if (balanceLoadTimeout) clearTimeout(balanceLoadTimeout);
+    // Debounce balance loading by 300ms
+    balanceLoadTimeout = setTimeout(() => {
+      loadTokenBalances();
+    }, 300);
   }
   
-  // Validate on amount change
+  // Validate on amount change (debounced)
+  let validationTimeout = null;
   $: if (amount) {
-    validateSwap();
+    if (validationTimeout) clearTimeout(validationTimeout);
+    validationTimeout = setTimeout(() => {
+      validateSwap();
+    }, 200);
   }
 </script>
 {#if isOpen}
