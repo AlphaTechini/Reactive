@@ -3,6 +3,7 @@
 	import { walletAddress, walletBalance, walletService } from '$lib/stores/wallet.js';
 	import { portfolios, portfoliosLoading, fetchPortfolios } from '$lib/stores/portfolios.js';
 	import { goto } from '$app/navigation';
+	import ModeSwitcher from '$lib/components/ModeSwitcher.svelte';
 	
 	onMount(async () => {
 		console.log('🏠 Landing page mounted');
@@ -48,6 +49,11 @@
 			<p class="text-xl text-gray-600 dark:text-gray-300 mb-8">
 				Automated portfolio management on the Reactive Network
 			</p>
+			
+			<!-- Mode Switcher -->
+			<div class="max-w-2xl mx-auto mb-8">
+				<ModeSwitcher currentMode="live" />
+			</div>
 			
 			<!-- Wallet Info Card -->
 			<div class="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-8">

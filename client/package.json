@@ -8,7 +8,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
-		"lint": "eslint ."
+		"lint": "eslint .",
+		"test": "vitest"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -26,7 +27,8 @@
 		"svelte": "^5.0.0",
 		"tailwindcss": "^4.0.0",
 		"vite": "^7.0.4",
-		"vite-plugin-devtools-json": "^1.0.0"
+		"vite-plugin-devtools-json": "^1.0.0",
+		"vitest": "^4.0.13"
 	},
 	"dependencies": {
 		"@helia/json": "^4.0.7",

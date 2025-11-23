@@ -15,6 +15,7 @@
 	import RouteGuard from '$lib/components/RouteGuard.svelte';
 	import TradeModal from '$lib/components/TradeModal.svelte';
 	import { manualTradingIntegrationService } from '$lib/services/ManualTradingIntegrationService.js';
+	import { globalPricesStore } from '$lib/stores/globalStorage.js';
 	
 	// Get portfolio ID from URL params
 	let portfolioId = $state($page.params.id);
@@ -49,6 +50,26 @@
 	let tradeModalDefaultTokenIn = $state(null);
 	let tradeModalDefaultTokenOut = $state(null);
 	let isManualTradingInitialized = $state(false);
+	
+	// Price formatting helpers
+	function formatPrice(price) {
+		if (!price || price === null) return '$0.00';
+		return `$${Number(price).toFixed(2)}`;
+	}
+	
+	function formatChange(change) {
+		if (!change) return '+0.00%';
+		const sign = change >= 0 ? '+' : '';
+		return `${sign}${Number(change).toFixed(2)}%`;
+	}
+	
+	function getTokenPrice(symbol) {
+		const priceInfo = $globalPricesStore[symbol];
+		return {
+			price: priceInfo?.priceUSD || 0,
+			change: priceInfo?.priceChangePercent || 0
+		};
+	}
 	
 	// Load portfolio data
 	onMount(async () => {
@@ -741,6 +762,7 @@
 											{#each categoryTokens as token}
 												{@const isSelected = selectedTokens.some(t => t.address === token.address)}
 												{@const borderClass = isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}
+												{@const priceData = getTokenPrice(token.symbol)}
 												<div class="flex items-center gap-3 p-3 rounded-lg border-2 transition-all {borderClass}">
 													<input
 														type="checkbox"
@@ -750,8 +772,8 @@
 														class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
 													/>
 													<label for="token-{token.address}" class="flex-1 cursor-pointer">
-														<div class="flex items-center justify-between">
-															<div>
+														<div class="flex items-center justify-between gap-3">
+															<div class="flex-shrink-0">
 																<p class="font-semibold text-gray-900 dark:text-white">
 																	{token.symbol}
 																</p>
@@ -759,21 +781,37 @@
 																	{token.name}
 																</p>
 															</div>
-															{#if isSelected}
-																<div class="flex items-center gap-2">
-																	<input
-																		type="number"
-																		min="0"
-																		max="100"
-																		step="0.01"
-																		value={allocations[token.address] || 0}
-																		oninput={(e) => updateAllocation(token.address, e.target.value)}
-																		class="w-20 px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-																		onclick={(e) => e.stopPropagation()}
-																	/>
-																	<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
+															<div class="flex items-center gap-3">
+																<!-- Price Info -->
+																<div class="text-right">
+																	<p class="text-sm font-medium text-gray-900 dark:text-white">
+																		{formatPrice(priceData.price)}
+																	</p>
+																	<p class="text-xs font-medium"
+																	   class:text-green-600={priceData.change >= 0}
+																	   class:dark:text-green-400={priceData.change >= 0}
+																	   class:text-red-600={priceData.change < 0}
+																	   class:dark:text-red-400={priceData.change < 0}>
+																		{formatChange(priceData.change)}
+																	</p>
 																</div>
-															{/if}
+																<!-- Allocation Input -->
+																{#if isSelected}
+																	<div class="flex items-center gap-2">
+																		<input
+																			type="number"
+																			min="0"
+																			max="100"
+																			step="0.01"
+																			value={allocations[token.address] || 0}
+																			oninput={(e) => updateAllocation(token.address, e.target.value)}
+																			class="w-20 px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+																			onclick={(e) => e.stopPropagation()}
+																		/>
+																		<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
+																	</div>
+																{/if}
+															</div>
 														</div>
 													</label>
 												</div>

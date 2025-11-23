@@ -1,26 +1,94 @@
 // Central Reactive Network configuration & contract address registry
 // Update these constants with real deployed addresses on Reactive Mainnet.
 
-export const REACTIVE_CHAIN_ID_DEC = 1597;
-export const REACTIVE_CHAIN_ID_HEX = '0x' + REACTIVE_CHAIN_ID_DEC.toString(16);
+// Mainnet Configuration
+export const REACTIVE_MAINNET_CHAIN_ID_DEC = 1597;
+export const REACTIVE_MAINNET_CHAIN_ID_HEX = '0x' + REACTIVE_MAINNET_CHAIN_ID_DEC.toString(16);
+export const REACTIVE_MAINNET_RPC_URL = 'https://mainnet-rpc.rnk.dev/';
+export const REACTIVE_MAINNET_EXPLORER = 'https://reactscan.net/';
+
+// Testnet Configuration
+export const REACTIVE_TESTNET_CHAIN_ID_DEC = 5318008;
+export const REACTIVE_TESTNET_CHAIN_ID_HEX = '0x' + REACTIVE_TESTNET_CHAIN_ID_DEC.toString(16);
+export const REACTIVE_TESTNET_RPC_URL = import.meta.env.VITE_TESTNET_RPC_URL || 'https://testnet-rpc.rnk.dev/';
+export const REACTIVE_TESTNET_EXPLORER = import.meta.env.VITE_TESTNET_EXPLORER_URL || 'https://testnet.reactscan.net/';
+
+// Legacy exports (default to mainnet for backward compatibility)
+export const REACTIVE_CHAIN_ID_DEC = REACTIVE_MAINNET_CHAIN_ID_DEC;
+export const REACTIVE_CHAIN_ID_HEX = REACTIVE_MAINNET_CHAIN_ID_HEX;
+export const REACTIVE_RPC_URL = REACTIVE_MAINNET_RPC_URL;
+export const REACTIVE_EXPLORER = REACTIVE_MAINNET_EXPLORER;
 
 import DEPLOYMENTS from './deployments.js';
-
-export const REACTIVE_RPC_URL = 'https://mainnet-rpc.rnk.dev/';
-export const REACTIVE_EXPLORER = 'https://reactscan.net/';
 
 // Core token (REACT) + Portfolio Manager contract (user deposits held here)
 // Prefer addresses emitted by the deployment script when available
 export const REACT_TOKEN_ADDRESS = DEPLOYMENTS.reactToken || import.meta.env.VITE_REACT_TOKEN_ADDRESS || '0x000000000000000000000000000000000000dEaD';
 export const PORTFOLIO_MANAGER_ADDRESS = DEPLOYMENTS.portfolioManager || import.meta.env.VITE_PORTFOLIO_MANAGER_ADDRESS || '0x0000000000000000000000000000000000000001';
 
-export const REACTIVE_NETWORK_PARAMS = {
-  chainId: REACTIVE_CHAIN_ID_HEX,
+// Mainnet Network Parameters
+export const REACTIVE_MAINNET_NETWORK_PARAMS = {
+  chainId: REACTIVE_MAINNET_CHAIN_ID_HEX,
   chainName: 'Reactive Mainnet',
   nativeCurrency: { name: 'Reactive', symbol: 'REACT', decimals: 18 },
-  rpcUrls: [REACTIVE_RPC_URL],
-  blockExplorerUrls: [REACTIVE_EXPLORER]
+  rpcUrls: [REACTIVE_MAINNET_RPC_URL],
+  blockExplorerUrls: [REACTIVE_MAINNET_EXPLORER]
 };
+
+// Testnet Network Parameters
+export const REACTIVE_TESTNET_NETWORK_PARAMS = {
+  chainId: REACTIVE_TESTNET_CHAIN_ID_HEX,
+  chainName: 'Reactive Testnet',
+  nativeCurrency: { name: 'Test Reactive', symbol: 'tREACT', decimals: 18 },
+  rpcUrls: [REACTIVE_TESTNET_RPC_URL],
+  blockExplorerUrls: [REACTIVE_TESTNET_EXPLORER]
+};
+
+// Local Hardhat Network Configuration (for simulation mode)
+export const LOCAL_NETWORK_CHAIN_ID_DEC = 1337;
+export const LOCAL_NETWORK_CHAIN_ID_HEX = '0x539';
+export const LOCAL_NETWORK_RPC_URL = 'http://127.0.0.1:8545';
+
+export const LOCAL_NETWORK_PARAMS = {
+  chainId: LOCAL_NETWORK_CHAIN_ID_HEX,
+  chainName: 'Hardhat Local',
+  nativeCurrency: { name: 'Ethereum', symbol: 'ETH', decimals: 18 },
+  rpcUrls: [LOCAL_NETWORK_RPC_URL],
+  blockExplorerUrls: []
+};
+
+// Legacy export (default to mainnet for backward compatibility)
+export const REACTIVE_NETWORK_PARAMS = REACTIVE_MAINNET_NETWORK_PARAMS;
+
+/**
+ * Get network configuration based on mode
+ * @param {string} mode - 'live' or 'simulation'
+ * @returns {Object} Network configuration object
+ */
+export function getNetworkConfig(mode) {
+  if (mode === 'simulation') {
+    return {
+      chainId: REACTIVE_TESTNET_CHAIN_ID_HEX,
+      chainIdDec: REACTIVE_TESTNET_CHAIN_ID_DEC,
+      chainName: 'Reactive Testnet',
+      rpcUrl: REACTIVE_TESTNET_RPC_URL,
+      explorerUrl: REACTIVE_TESTNET_EXPLORER,
+      nativeCurrency: { name: 'Test Reactive', symbol: 'tREACT', decimals: 18 },
+      networkParams: REACTIVE_TESTNET_NETWORK_PARAMS
+    };
+  }
+  
+  // Default to mainnet for 'live' mode
+  return {
+    chainId: REACTIVE_MAINNET_CHAIN_ID_HEX,
+    chainIdDec: REACTIVE_MAINNET_CHAIN_ID_DEC,
+    chainName: 'Reactive Mainnet',
+    rpcUrl: REACTIVE_MAINNET_RPC_URL,
+    explorerUrl: REACTIVE_MAINNET_EXPLORER,
+    nativeCurrency: { name: 'Reactive', symbol: 'REACT', decimals: 18 },
+    networkParams: REACTIVE_MAINNET_NETWORK_PARAMS
+  };
+}
 
 // Minimal ERC20 ABI (balance, decimals, symbol, approve flow)
 export const ERC20_MIN_ABI = [
@@ -88,8 +156,35 @@ export const INITIAL_TOKEN_LIST = [
   { symbol: 'REACT', name: 'Reactive Token', address: REACT_TOKEN_ADDRESS, decimals: 18, category: 'reactive' }
 ];
 
+/**
+ * Check if a chain ID is a Reactive chain (mainnet or testnet)
+ * @param {string|number} chainId - Chain ID to check
+ * @returns {boolean} True if the chain is Reactive mainnet or testnet
+ */
 export function isReactiveChain(chainId) {
   if (!chainId) return false;
   const dec = typeof chainId === 'string' && chainId.startsWith('0x') ? parseInt(chainId, 16) : Number(chainId);
-  return dec === REACTIVE_CHAIN_ID_DEC;
+  return dec === REACTIVE_MAINNET_CHAIN_ID_DEC || dec === REACTIVE_TESTNET_CHAIN_ID_DEC;
+}
+
+/**
+ * Check if a chain ID is Reactive mainnet
+ * @param {string|number} chainId - Chain ID to check
+ * @returns {boolean} True if the chain is Reactive mainnet
+ */
+export function isReactiveMainnet(chainId) {
+  if (!chainId) return false;
+  const dec = typeof chainId === 'string' && chainId.startsWith('0x') ? parseInt(chainId, 16) : Number(chainId);
+  return dec === REACTIVE_MAINNET_CHAIN_ID_DEC;
+}
+
+/**
+ * Check if a chain ID is Reactive testnet
+ * @param {string|number} chainId - Chain ID to check
+ * @returns {boolean} True if the chain is Reactive testnet
+ */
+export function isReactiveTestnet(chainId) {
+  if (!chainId) return false;
+  const dec = typeof chainId === 'string' && chainId.startsWith('0x') ? parseInt(chainId, 16) : Number(chainId);
+  return dec === REACTIVE_TESTNET_CHAIN_ID_DEC;
 }

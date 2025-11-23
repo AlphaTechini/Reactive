@@ -1094,7 +1094,7 @@ contract EnhancedPortfolioManager is ReentrancyGuard, Ownable {
      * @param plan Rebalancing plan
      * @return estimatedGas Estimated gas cost in wei
      */
-    function _estimateRebalancingGasCost(RebalancingPlan calldata plan)
+    function _estimateRebalancingGasCost(RebalancingPlan memory plan)
         internal
         view
         returns (uint256 estimatedGas)

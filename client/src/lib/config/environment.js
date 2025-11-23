@@ -21,7 +21,13 @@ export const CONTRACT_ADDRESSES = {
 export const NETWORK_CONFIG = {
   name: import.meta.env.VITE_NETWORK_NAME || 'reactive-testnet',
   chainId: parseInt(import.meta.env.VITE_CHAIN_ID || '1'),
-  rpcUrl: import.meta.env.VITE_RPC_URL || 'https://rpc.reactive.network'
+  rpcUrl: import.meta.env.VITE_RPC_URL || 'https://rpc.reactive.network',
+  // Testnet-specific configuration
+  testnet: {
+    rpcUrl: import.meta.env.VITE_TESTNET_RPC_URL || 'https://testnet-rpc.rnk.dev/',
+    explorerUrl: import.meta.env.VITE_TESTNET_EXPLORER_URL || 'https://testnet.reactscan.net/',
+    chainId: parseInt(import.meta.env.VITE_TESTNET_CHAIN_ID || '5318008')
+  }
 };
 
 // Service Configuration
