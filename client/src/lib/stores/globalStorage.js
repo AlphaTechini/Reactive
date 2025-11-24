@@ -136,6 +136,74 @@ class GlobalStorageService {
   }
 
   /**
+   * Get price for specific token with null safety
+   * Returns null if token doesn't exist or price is invalid
+   * @param {string} tokenAddress - The token address to look up
+   * @returns {number|null} The price value or null
+   */
+  getPriceSafe(tokenAddress) {
+    if (!tokenAddress) return null;
+    
+    const priceData = this.prices.get(tokenAddress);
+    if (!priceData) return null;
+    
+    const price = priceData.price ?? priceData.current;
+    
+    // Validate that price is a valid number
+    if (typeof price !== 'number' || !isFinite(price)) {
+      return null;
+    }
+    
+    return price;
+  }
+
+  /**
+   * Check if price data is available for a token
+   * @param {string} tokenAddress - The token address to check
+   * @returns {boolean} True if valid price data exists
+   */
+  isPriceAvailable(tokenAddress) {
+    if (!tokenAddress) return false;
+    
+    const priceData = this.prices.get(tokenAddress);
+    if (!priceData) return false;
+    
+    const price = priceData.price ?? priceData.current;
+    return typeof price === 'number' && isFinite(price);
+  }
+
+  /**
+   * Get the age of price data in milliseconds
+   * @param {string} tokenAddress - The token address to check
+   * @returns {number|null} Age in milliseconds, or null if no data exists
+   */
+  getPriceAge(tokenAddress) {
+    if (!tokenAddress) return null;
+    
+    const priceData = this.prices.get(tokenAddress);
+    if (!priceData || !priceData.timestamp) return null;
+    
+    const age = Date.now() - priceData.timestamp;
+    return age >= 0 ? age : null;
+  }
+
+  /**
+   * Check if price data is stale
+   * @param {string} tokenAddress - The token address to check
+   * @param {number} maxAge - Maximum age in milliseconds (default: 5 minutes)
+   * @returns {boolean} True if data is stale or missing
+   */
+  isStale(tokenAddress, maxAge = 5 * 60 * 1000) {
+    const age = this.getPriceAge(tokenAddress);
+    
+    // If no data exists, consider it stale
+    if (age === null) return true;
+    
+    // Check if age exceeds threshold
+    return age > maxAge;
+  }
+
+  /**
    * Get price history for token
    */
   getPriceHistory(tokenAddress, maxPoints = null) {

@@ -4,6 +4,7 @@
 	import { portfolios, portfoliosLoading, fetchPortfolios } from '$lib/stores/portfolios.js';
 	import { goto } from '$app/navigation';
 	import ModeSwitcher from '$lib/components/ModeSwitcher.svelte';
+	import { formatPrice, isValidPrice } from '$lib/utils/priceFormatter.js';
 	
 	onMount(async () => {
 		console.log('🏠 Landing page mounted');
@@ -165,6 +166,8 @@
 				<!-- Portfolio Grid -->
 				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{#each $portfolios as portfolio}
+						{@const perfValue = portfolio.performance ?? 0}
+						{@const isPositive = isValidPrice(perfValue) && perfValue >= 0}
 						<button
 							onclick={() => viewPortfolio(portfolio.id)}
 							class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all transform hover:scale-105 text-left"
@@ -189,13 +192,13 @@
 								<div class="flex justify-between items-center">
 									<span class="text-sm text-gray-500 dark:text-gray-400">Balance</span>
 									<span class="text-lg font-bold text-gray-900 dark:text-white">
-										{portfolio.balance || '0'} REACT
+										{isValidPrice(portfolio.balance) ? portfolio.balance : '0'} REACT
 									</span>
 								</div>
 								<div class="flex justify-between items-center">
 									<span class="text-sm text-gray-500 dark:text-gray-400">Performance</span>
-									<span class="text-sm font-semibold" class:text-green-600={portfolio.performance >= 0} class:text-red-600={portfolio.performance < 0}>
-										{portfolio.performance >= 0 ? '+' : ''}{portfolio.performance || 0}%
+									<span class="text-sm font-semibold" class:text-green-600={isPositive} class:text-red-600={!isPositive && isValidPrice(perfValue)}>
+										{isValidPrice(perfValue) ? (perfValue >= 0 ? '+' : '') + perfValue.toFixed(2) + '%' : 'N/A'}
 									</span>
 								</div>
 								<div class="flex justify-between items-center">

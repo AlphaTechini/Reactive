@@ -129,14 +129,20 @@ class EnhancedPriceDisplayService {
       return typeof price === 'number' && price > 0;
     });
 
-    // Test Uniswap service (if available)
-    await this.testPriceSource('uniswap', async () => {
-      const response = await fetch(`${this.uniswapPriceUrl}`, {
-        method: 'HEAD',
-        signal: AbortSignal.timeout(API_TIMEOUT)
+    // Test Uniswap service (if available) - skip in simulation mode
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/simulated')) {
+      await this.testPriceSource('uniswap', async () => {
+        try {
+          const response = await fetch(`${this.uniswapPriceUrl}`, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(API_TIMEOUT)
+          });
+          return response.ok;
+        } catch (e) {
+          return false; // Service not available
+        }
       });
-      return response.ok;
-    });
+    }
 
     this.updateSourceStatusStore();
   }
@@ -175,16 +181,34 @@ class EnhancedPriceDisplayService {
     console.log('🔄 Fetching prices from all sources...');
     
     const results = new Map();
+    const fetchErrors = [];
     
     for (const token of this.supportedTokens) {
       try {
         const priceData = await this.fetchTokenPriceMultiSource(token);
         if (priceData) {
           results.set(token.address, priceData);
+        } else {
+          fetchErrors.push({
+            token: token.symbol,
+            error: 'No price data returned',
+            timestamp: Date.now()
+          });
         }
       } catch (error) {
-        console.warn(`⚠️ Failed to fetch price for ${token.symbol}:`, error.message);
+        const errorMsg = `Failed to fetch price for ${token.symbol}: ${error.message}`;
+        console.error('❌', errorMsg);
+        fetchErrors.push({
+          token: token.symbol,
+          error: error.message,
+          timestamp: Date.now()
+        });
       }
+    }
+
+    // Log summary of fetch errors if any
+    if (fetchErrors.length > 0) {
+      console.error(`❌ Failed to fetch prices for ${fetchErrors.length} tokens:`, fetchErrors);
     }
 
     // Update stores with results
@@ -204,10 +228,15 @@ class EnhancedPriceDisplayService {
       }
       await globalStorage.storePrices(pricesObj, { source: 'enhanced_price_service' });
     } catch (error) {
-      console.warn('⚠️ Failed to update global storage:', error.message);
+      console.error('❌ Failed to update global storage:', error.message);
     }
     
-    console.log(`✅ Successfully fetched prices for ${results.size} tokens`);
+    console.log(`✅ Successfully fetched prices for ${results.size}/${this.supportedTokens.length} tokens`);
+    
+    if (fetchErrors.length > 0) {
+      console.warn(`⚠️ ${fetchErrors.length} tokens failed to fetch`);
+    }
+    
     return results.size;
   }
 

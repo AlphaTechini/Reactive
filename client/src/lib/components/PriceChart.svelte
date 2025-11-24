@@ -2,7 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { appMode } from '$lib/stores/appMode.js';
-  import { globalPriceHistoryStore } from '$lib/stores/globalStorage.js';
+  import { globalPriceHistoryStore, globalStorage } from '$lib/stores/globalStorage.js';
+  import { isValidPrice } from '$lib/utils/priceFormatter.js';
 
   export let selectedToken = null;
   export let timeframe = '1h';
@@ -23,6 +24,7 @@
     '1d': { intervalMs: 24 * 60 * 60 * 1000, intervals: 30 }
   };
 
+  // Safe base price lookup with fallback (Requirement 3.3)
   function getBasePriceForToken(symbol) {
     const basePrices = {
       ETH: 2500, WETH: 2500, 
@@ -31,7 +33,8 @@
       USDC: 1.0, USDT: 1.0,
       REACT: 0.05
     };
-    return basePrices[symbol] || 100;
+    const price = basePrices[symbol] || 100;
+    return isValidPrice(price) ? price : 100;
   }
 
   async function loadChartData() {
@@ -58,7 +61,7 @@
   }
 
   async function generateCandlesFromHistory() {
-  const historyData = get(globalPriceHistoryStore);
+    const historyData = get(globalPriceHistoryStore);
     const tokenHistory = historyData[selectedToken.address] || [];
     
     if (tokenHistory.length === 0) {
@@ -73,14 +76,16 @@
       const intervalStart = now - (i + 1) * config.intervalMs;
       const intervalEnd = now - i * config.intervalMs;
       
-      const intervalPrices = tokenHistory.filter(point => 
-        point.timestamp >= intervalStart && point.timestamp < intervalEnd
-      ).map(p => p.price);
+      // Safe price filtering with validation (Requirement 4.3)
+      const intervalPrices = tokenHistory
+        .filter(point => point.timestamp >= intervalStart && point.timestamp < intervalEnd)
+        .map(p => p.price)
+        .filter(price => isValidPrice(price));
       
       if (intervalPrices.length === 0) {
         const prevClose = candles.length > 0 ? candles[candles.length - 1].close : getBasePriceForToken(selectedToken.symbol);
         const drift = (Math.random() - 0.5) * 0.01;
-        const price = prevClose * (1 + drift);
+        const price = isValidPrice(prevClose) ? prevClose * (1 + drift) : getBasePriceForToken(selectedToken.symbol);
         
         candles.push({
           time: intervalEnd,

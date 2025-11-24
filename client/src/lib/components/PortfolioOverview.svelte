@@ -4,6 +4,9 @@
   import { rebalancingEngine } from '../services/RebalancingEngine.js';
   import { rebalancingAnalysisStore } from '../services/RebalancingEngine.js';
   import { INITIAL_TOKEN_LIST } from '../config/network.js';
+  import { formatPrice as utilFormatPrice, formatChange as utilFormatChange, isValidPrice } from '../utils/priceFormatter.js';
+  import { globalStorage } from '../stores/globalStorage.js';
+  import SafePriceDisplay from './SafePriceDisplay.svelte';
   
   // Portfolio state
   let portfolioAllocation = [];
@@ -120,16 +123,20 @@
     const allocation = [];
     let portfolioTotal = 0;
     
-    // Calculate current portfolio values with 18-decimal precision
+    // Calculate current portfolio values with safe price access (Requirement 1.2, 3.3, 4.2)
     for (const [tokenAddress, balance] of Object.entries(mockHoldings)) {
-      const priceData = enhancedPrices[tokenAddress];
+      // Use safe price accessor (Requirement 4.2)
+      const priceData = enhancedPrices[tokenAddress] || globalStorage.getPriceSafe(tokenAddress);
       if (!priceData) continue;
       
       const token = INITIAL_TOKEN_LIST.find(t => t.address === tokenAddress);
       if (!token) continue;
       
-      // Use precise price calculation (requirement 1.1)
-      const value = balance * priceData.price;
+      // Safe numeric validation before calculation (Requirement 4.3)
+      const price = priceData?.price ?? priceData?.current ?? 0;
+      if (!isValidPrice(price) || !isValidPrice(balance)) continue;
+      
+      const value = balance * price;
       portfolioTotal += value;
       
       allocation.push({
@@ -185,13 +192,13 @@
     }
   }
   
+  // Safe price formatting functions (Requirement 1.2, 4.1, 4.3)
   function formatPrice(price, decimals = 6) {
-    if (typeof price !== 'number' || isNaN(price)) return '0.000000';
-    return price.toFixed(decimals);
+    return utilFormatPrice(price, { decimals, showCurrency: false, fallback: '0.000000' });
   }
   
   function formatPercentage(percentage, decimals = 2) {
-    if (typeof percentage !== 'number' || isNaN(percentage)) return '0.00';
+    if (!isValidPrice(percentage)) return '0.00';
     return percentage.toFixed(decimals);
   }
   

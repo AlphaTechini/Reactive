@@ -15,7 +15,9 @@
 	import RouteGuard from '$lib/components/RouteGuard.svelte';
 	import TradeModal from '$lib/components/TradeModal.svelte';
 	import { manualTradingIntegrationService } from '$lib/services/ManualTradingIntegrationService.js';
-	import { globalPricesStore } from '$lib/stores/globalStorage.js';
+	import { globalPricesStore, globalStorage } from '$lib/stores/globalStorage.js';
+	import { formatPrice as utilFormatPrice, formatChange as utilFormatChange, isValidPrice } from '$lib/utils/priceFormatter.js';
+	import SafePriceDisplay from '$lib/components/SafePriceDisplay.svelte';
 	
 	// Get portfolio ID from URL params
 	let portfolioId = $state($page.params.id);
@@ -63,11 +65,15 @@
 		return `${sign}${Number(change).toFixed(2)}%`;
 	}
 	
-	function getTokenPrice(symbol) {
-		const priceInfo = $globalPricesStore[symbol];
+	// Safe price access helper - uses globalStorage safe accessors (Requirement 4.2)
+	function getTokenPrice(tokenAddress) {
+		// Use safe accessor from globalStorage (Requirement 3.3, 4.2)
+		const priceData = globalStorage.getPriceSafe(tokenAddress);
 		return {
-			price: priceInfo?.priceUSD || 0,
-			change: priceInfo?.priceChangePercent || 0
+			price: priceData?.price ?? priceData?.current ?? null,
+			change: priceData?.change ?? priceData?.change24h ?? null,
+			isAvailable: globalStorage.isPriceAvailable(tokenAddress),
+			isStale: globalStorage.isStale(tokenAddress, 5 * 60 * 1000)
 		};
 	}
 	
@@ -762,7 +768,7 @@
 											{#each categoryTokens as token}
 												{@const isSelected = selectedTokens.some(t => t.address === token.address)}
 												{@const borderClass = isSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}
-												{@const priceData = getTokenPrice(token.symbol)}
+												{@const priceData = getTokenPrice(token.address)}
 												<div class="flex items-center gap-3 p-3 rounded-lg border-2 transition-all {borderClass}">
 													<input
 														type="checkbox"

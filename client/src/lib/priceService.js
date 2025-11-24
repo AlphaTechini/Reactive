@@ -44,6 +44,11 @@ class EnhancedPriceService {
     this.backendRefreshInterval = 15 * 60 * 1000; // 15 minutes
     this.lastBackendCheck = null;
     
+    // Error tracking for recovery
+    this.lastFetchErrors = [];
+    this.consecutiveFailures = 0;
+    this.MAX_CONSECUTIVE_FAILURES = 3;
+    
     // Token list for price fetching - using unified backend endpoint
     this.supportedTokens = INITIAL_TOKEN_LIST.map(token => ({
       symbol: token.symbol,
@@ -112,9 +117,17 @@ class EnhancedPriceService {
       this.isInitialized = true;
       console.log('✅ Price service initialized successfully');
       
-      // Subscribe to app mode changes
-      appMode.subscribe(() => {
+      // Subscribe to app mode changes (skip initial call)
+      let isFirstCall = true;
+      appMode.subscribe((mode) => {
+        if (isFirstCall) {
+          isFirstCall = false;
+          console.log(`📍 Initial mode: ${mode}`);
+          return;
+        }
+        
         if (this.isInitialized) {
+          console.log(`🔄 Mode change detected: switching to ${mode}`);
           this.handleModeChange();
         }
       });
@@ -131,6 +144,8 @@ class EnhancedPriceService {
     const mode = get(appMode);
     globalRefreshingStore.set(true);
     
+    const fetchErrors = [];
+    
     try {
       let batchPrices = null;
       
@@ -140,7 +155,9 @@ class EnhancedPriceService {
           batchPrices = await secureContractService.getMockPrices();
           console.log('✅ Loaded mock prices for simulation');
         } catch (e) {
-          console.warn('Mock prices failed:', e.message);
+          const errorMsg = `Mock prices failed: ${e.message}`;
+          console.error('❌', errorMsg);
+          fetchErrors.push({ source: 'mock', error: errorMsg, timestamp: Date.now() });
         }
       }
       
@@ -152,7 +169,8 @@ class EnhancedPriceService {
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json'
-            }
+            },
+            signal: AbortSignal.timeout(10000) // 10 second timeout
           });
           
           if (response.ok) {
@@ -171,10 +189,14 @@ class EnhancedPriceService {
               }
             }
           } else {
-            console.warn('⚠️ Backend endpoint error:', response.status, response.statusText);
+            const errorMsg = `Backend endpoint error: ${response.status} ${response.statusText}`;
+            console.error('❌', errorMsg);
+            fetchErrors.push({ source: 'backend', error: errorMsg, timestamp: Date.now() });
           }
         } catch (e) {
-          console.warn('⚠️ Failed to load from backend:', e.message);
+          const errorMsg = `Failed to load from backend: ${e.message}`;
+          console.error('❌', errorMsg);
+          fetchErrors.push({ source: 'backend', error: errorMsg, timestamp: Date.now() });
         }
       }
       
@@ -251,10 +273,22 @@ class EnhancedPriceService {
         return this.supportedTokens.length;
       }
       
+      // Log all fetch errors if any occurred
+      if (fetchErrors.length > 0) {
+        console.error('❌ Price fetch errors:', fetchErrors);
+        // Store errors for potential UI display
+        this.lastFetchErrors = fetchErrors;
+      }
+      
       return 0;
     } catch (error) {
-      console.error('❌ Backend fetch failed:', error);
-      return 0;
+      const errorMsg = `Backend fetch failed: ${error.message}`;
+      console.error('❌', errorMsg);
+      fetchErrors.push({ source: 'backend', error: errorMsg, timestamp: Date.now() });
+      this.lastFetchErrors = fetchErrors;
+      
+      // Re-throw to allow caller to handle
+      throw new Error(errorMsg);
     } finally {
       globalRefreshingStore.set(false);
     }
@@ -493,7 +527,7 @@ class EnhancedPriceService {
     return history.filter(point => point.timestamp >= fromTimestamp);
   }
 
-  // Manual refresh all prices
+  // Manual refresh all prices with error recovery
   async refreshAllPrices() {
     if (this.isRefreshing) {
       console.log('🔄 Price refresh already in progress...');
@@ -507,9 +541,46 @@ class EnhancedPriceService {
 
     try {
       const updatedCount = await this.fetchFromBackend();
-      console.log(`✅ Manual refresh completed, updated ${updatedCount} prices`);
+      
+      if (updatedCount > 0) {
+        console.log(`✅ Manual refresh completed, updated ${updatedCount} prices`);
+        // Reset failure counter on success
+        this.consecutiveFailures = 0;
+        this.lastFetchErrors = [];
+      } else {
+        console.warn('⚠️ Manual refresh completed but no prices were updated');
+        this.consecutiveFailures++;
+        
+        // If we have too many consecutive failures, log a warning
+        if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+          console.error(`❌ ${this.consecutiveFailures} consecutive refresh failures. Using cached data.`);
+        }
+      }
+      
+      return updatedCount;
     } catch (error) {
       console.error('❌ Manual refresh failed:', error);
+      this.consecutiveFailures++;
+      
+      // Log detailed error information
+      const errorDetails = {
+        message: error.message,
+        timestamp: Date.now(),
+        consecutiveFailures: this.consecutiveFailures,
+        hasCache: this.globalStorage.getStats().priceCount > 0
+      };
+      
+      console.error('❌ Refresh error details:', errorDetails);
+      
+      // Store error for UI display
+      this.lastFetchErrors.push({
+        source: 'manual_refresh',
+        error: error.message,
+        timestamp: Date.now()
+      });
+      
+      // Re-throw to allow caller to handle
+      throw error;
     } finally {
       this.isRefreshing = false;
       globalRefreshingStore.set(false);
@@ -531,16 +602,95 @@ class EnhancedPriceService {
     }
   }
 
-  // Handle app mode changes - only fetch if cache expired
+  // Handle app mode changes - clear stale data and refresh
   async handleModeChange() {
-    const now = Date.now();
-    if (now >= this.backendCacheExpiresAt) {
-      console.log('🔄 App mode changed + cache expired, refreshing...');
+    const mode = get(appMode);
+    console.log(`🔄 App mode changed to: ${mode}`);
+    
+    // Clear stale data from previous mode to prevent cross-contamination
+    console.log('🧹 Clearing stale price data from previous mode...');
+    this.globalStorage.clear();
+    
+    // Reset backend cache expiration to force fresh fetch
+    this.backendCacheExpiresAt = 0;
+    
+    // Reset error tracking
+    this.consecutiveFailures = 0;
+    this.lastFetchErrors = [];
+    
+    // Fetch appropriate prices for the new mode
+    globalRefreshingStore.set(true);
+    try {
+      if (mode === 'simulation') {
+        console.log('🧪 Fetching mock prices for simulation mode...');
+      } else {
+        console.log('🔴 Fetching backend prices for live mode...');
+      }
+      
       await this.fetchFromBackend();
-    } else {
-      const secondsLeft = Math.round((this.backendCacheExpiresAt - now) / 1000);
-      console.log(`🔄 App mode changed, but cache still fresh (${secondsLeft}s remaining)`);
+      
+      // Verify correct price source after fetch
+      this.verifyPriceSource(mode);
+      
+      console.log(`✅ Mode switch complete: ${mode} mode prices loaded`);
+    } catch (error) {
+      console.error(`❌ Failed to fetch prices after mode switch:`, error);
+    } finally {
+      globalRefreshingStore.set(false);
     }
+  }
+
+  // Verify that prices are from the correct source for the current mode
+  verifyPriceSource(mode) {
+    const prices = this.globalStorage.getAllPrices();
+    const priceEntries = Object.entries(prices);
+    
+    if (priceEntries.length === 0) {
+      console.warn('⚠️ No prices available to verify source');
+      return false;
+    }
+    
+    // Check a sample of prices to verify source
+    const sampleSize = Math.min(5, priceEntries.length);
+    const samples = priceEntries.slice(0, sampleSize);
+    
+    let correctSource = 0;
+    let incorrectSource = 0;
+    
+    for (const [address, priceData] of samples) {
+      const source = priceData.source || 'unknown';
+      const priceMode = priceData.mode || 'unknown';
+      
+      if (mode === 'simulation') {
+        // In simulation mode, expect 'mock' source
+        if (source === 'mock' || priceMode === 'simulation') {
+          correctSource++;
+        } else {
+          incorrectSource++;
+          console.warn(`⚠️ Price contamination detected: ${address} has source '${source}' in simulation mode`);
+        }
+      } else {
+        // In live mode, expect 'backend' source
+        if (source === 'backend' || priceMode === 'live') {
+          correctSource++;
+        } else if (source === 'mock' || priceMode === 'simulation') {
+          incorrectSource++;
+          console.warn(`⚠️ Price contamination detected: ${address} has source '${source}' in live mode`);
+        } else {
+          // Cache or IPFS sources are acceptable in live mode
+          correctSource++;
+        }
+      }
+    }
+    
+    const isValid = incorrectSource === 0;
+    if (isValid) {
+      console.log(`✅ Price source verification passed: ${correctSource}/${sampleSize} prices from correct source`);
+    } else {
+      console.error(`❌ Price source verification failed: ${incorrectSource}/${sampleSize} prices from incorrect source`);
+    }
+    
+    return isValid;
   }
 
   // User wallet management
@@ -826,6 +976,78 @@ class EnhancedPriceService {
   // Status methods
   getStorageStatus() {
     return this.globalStorage.getStats();
+  }
+  
+  // Get last fetch errors for error recovery UI
+  getLastFetchErrors() {
+    return this.lastFetchErrors;
+  }
+  
+  // Get consecutive failure count
+  getConsecutiveFailures() {
+    return this.consecutiveFailures;
+  }
+  
+  // Check if service is in degraded state (using cached data due to failures)
+  isDegraded() {
+    return this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES;
+  }
+  
+  // Clear error state (useful after manual intervention)
+  clearErrors() {
+    this.lastFetchErrors = [];
+    this.consecutiveFailures = 0;
+    console.log('🧹 Price service errors cleared');
+  }
+  
+  // Get current mode and verify price source consistency
+  getModeStatus() {
+    const mode = get(appMode);
+    const prices = this.globalStorage.getAllPrices();
+    const priceEntries = Object.entries(prices);
+    
+    if (priceEntries.length === 0) {
+      return {
+        currentMode: mode,
+        priceCount: 0,
+        isConsistent: true,
+        message: 'No prices loaded'
+      };
+    }
+    
+    // Check all prices for consistency
+    let mockCount = 0;
+    let backendCount = 0;
+    let otherCount = 0;
+    
+    for (const [, priceData] of priceEntries) {
+      const source = priceData.source || 'unknown';
+      const priceMode = priceData.mode || 'unknown';
+      
+      if (source === 'mock' || priceMode === 'simulation') {
+        mockCount++;
+      } else if (source === 'backend' || priceMode === 'live') {
+        backendCount++;
+      } else {
+        otherCount++;
+      }
+    }
+    
+    const isConsistent = mode === 'simulation' 
+      ? (mockCount > 0 && backendCount === 0)
+      : (backendCount > 0 && mockCount === 0);
+    
+    return {
+      currentMode: mode,
+      priceCount: priceEntries.length,
+      mockCount,
+      backendCount,
+      otherCount,
+      isConsistent,
+      message: isConsistent 
+        ? `All ${priceEntries.length} prices are from correct source (${mode} mode)`
+        : `Price source mismatch detected: ${mockCount} mock, ${backendCount} backend, ${otherCount} other in ${mode} mode`
+    };
   }
 }
 

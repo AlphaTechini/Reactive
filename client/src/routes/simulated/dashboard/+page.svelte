@@ -1,11 +1,28 @@
 <script>
 	import { onMount } from 'svelte';
-	import { simulationPortfolio, simulationSummary, simulationPrices } from '$lib/stores/simulation';
+	import { 
+		simulationBalance, 
+		simulationPortfolios, 
+		totalPortfolioValue,
+		overallProfitLoss,
+		portfolioCount,
+		updatePortfolioPrices,
+		startPriceUpdates
+	} from '$lib/stores/simulation';
 	import { globalPricesStore } from '$lib/stores/globalStorage.js';
 	import { INITIAL_TOKEN_LIST } from '$lib/config/network.js';
+	import priceService from '$lib/priceService.js';
 
-	let selectedToken = null;
-	let timeframe = '1d';
+	// Initialize price updates on mount
+	onMount(async () => {
+		// Ensure price service is initialized
+		if (!priceService.isInitialized) {
+			await priceService.initialize();
+		}
+		
+		// Start price updates for all portfolios
+		startPriceUpdates();
+	});
 
 	// Update simulation prices when global prices change
 	$: if ($globalPricesStore) {
@@ -17,24 +34,33 @@
 				prices[token.symbol] = data.price;
 			}
 		}
-		// Update simulation prices
-		import('$lib/stores/simulation').then(({ updateSimulationPrices }) => {
-			updateSimulationPrices(prices);
-		});
+		// Update portfolio prices
+		if (Object.keys(prices).length > 0) {
+			updatePortfolioPrices(prices);
+		}
 	}
 
-	onMount(() => {
-		// Set default token
-		selectedToken = INITIAL_TOKEN_LIST.find(t => t.symbol === 'ETH') || INITIAL_TOKEN_LIST[0];
-	});
-
-	$: summary = $simulationSummary || {
-		balance: 0,
-		totalValue: 0,
-		profitLoss: 0,
-		profitLossPercent: 0,
-		holdings: []
-	};
+	// Convert portfolios object to array for easier iteration
+	$: portfolioList = Object.values($simulationPortfolios || {});
+	
+	// Format currency
+	function formatCurrency(value) {
+		return new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: 'USD',
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2
+		}).format(value);
+	}
+	
+	// Format date
+	function formatDate(timestamp) {
+		return new Date(timestamp).toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric'
+		});
+	}
 </script>
 
 <svelte:head>
@@ -43,97 +69,92 @@
 
 <div class="simulation-dashboard">
 	<div class="container">
-		<!-- Portfolio Summary -->
+		<!-- Account Summary -->
 		<div class="summary-card">
-			<h2>📊 Portfolio Summary</h2>
+			<h2>📊 Account Summary</h2>
 			<div class="summary-grid">
 				<div class="summary-item">
-					<span class="label">Cash Balance</span>
-					<span class="value">${summary.balance.toFixed(2)}</span>
+					<span class="label">Available Balance</span>
+					<span class="value">{formatCurrency($simulationBalance)}</span>
 				</div>
 				<div class="summary-item">
-					<span class="label">Total Value</span>
-					<span class="value">${summary.totalValue.toFixed(2)}</span>
+					<span class="label">Total Portfolio Value</span>
+					<span class="value">{formatCurrency($totalPortfolioValue)}</span>
 				</div>
 				<div class="summary-item">
-					<span class="label">Total Invested</span>
-					<span class="value">${summary.totalInvested.toFixed(2)}</span>
+					<span class="label">Total Account Value</span>
+					<span class="value">{formatCurrency($simulationBalance + $totalPortfolioValue)}</span>
 				</div>
 				<div class="summary-item">
-					<span class="label">Profit/Loss</span>
-					<span class="value" class:profit={summary.profitLoss >= 0} class:loss={summary.profitLoss < 0}>
-						{summary.profitLoss >= 0 ? '+' : ''}{summary.profitLoss.toFixed(2)} 
-						({summary.profitLossPercent.toFixed(2)}%)
+					<span class="label">Overall P/L</span>
+					<span class="value" class:profit={$overallProfitLoss.absolute >= 0} class:loss={$overallProfitLoss.absolute < 0}>
+						{$overallProfitLoss.absolute >= 0 ? '+' : ''}{formatCurrency($overallProfitLoss.absolute)}
+						({$overallProfitLoss.percentage.toFixed(2)}%)
 					</span>
 				</div>
 			</div>
 		</div>
 
-		<!-- Holdings -->
-		<div class="holdings-card">
-			<h2>💼 Holdings</h2>
-			{#if summary.holdings.length === 0}
-				<p class="empty-state">No holdings yet. Start trading to build your portfolio!</p>
+		<!-- Portfolios Section -->
+		<div class="portfolios-section">
+			<div class="section-header">
+				<h2>💼 My Portfolios ({$portfolioCount})</h2>
+				<a href="/simulated/create-portfolio" class="create-btn">
+					<span class="icon">➕</span>
+					<span>Create Portfolio</span>
+				</a>
+			</div>
+
+			{#if portfolioList.length === 0}
+				<div class="empty-state-card">
+					<div class="empty-icon">📂</div>
+					<h3>No Portfolios Yet</h3>
+					<p>Create your first portfolio to start managing your investments</p>
+					<a href="/simulated/create-portfolio" class="empty-action-btn">
+						Create Portfolio
+					</a>
+				</div>
 			{:else}
-				<div class="holdings-list">
-					{#each summary.holdings as holding}
-						<div class="holding-item">
-							<div class="holding-header">
-								<span class="symbol">{holding.symbol}</span>
-								<span class="amount">{holding.amount.toFixed(6)} tokens</span>
+				<div class="portfolio-grid">
+					{#each portfolioList as portfolio}
+						<a href="/simulated/portfolio/{encodeURIComponent(portfolio.name)}" class="portfolio-card">
+							<div class="portfolio-header">
+								<h3 class="portfolio-name">{portfolio.name}</h3>
+								<span class="portfolio-date">{formatDate(portfolio.createdAt)}</span>
 							</div>
-							<div class="holding-details">
-								<div class="detail">
-									<span class="detail-label">Avg Buy:</span>
-									<span class="detail-value">${holding.avgBuyPrice.toFixed(2)}</span>
+							
+							{#if portfolio.description}
+								<p class="portfolio-description">{portfolio.description}</p>
+							{/if}
+							
+							<div class="portfolio-stats">
+								<div class="stat">
+									<span class="stat-label">Current Value</span>
+									<span class="stat-value">{formatCurrency(portfolio.currentValue)}</span>
 								</div>
-								<div class="detail">
-									<span class="detail-label">Current:</span>
-									<span class="detail-value">${holding.currentPrice.toFixed(2)}</span>
-								</div>
-								<div class="detail">
-									<span class="detail-label">Invested:</span>
-									<span class="detail-value">${holding.totalInvested.toFixed(2)}</span>
-								</div>
-								<div class="detail">
-									<span class="detail-label">Value:</span>
-									<span class="detail-value">${holding.currentValue.toFixed(2)}</span>
-								</div>
-								<div class="detail">
-									<span class="detail-label">P/L:</span>
-									<span class="detail-value" class:profit={holding.profitLoss >= 0} class:loss={holding.profitLoss < 0}>
-										{holding.profitLoss >= 0 ? '+' : ''}{holding.profitLoss.toFixed(2)} 
-										({holding.profitLossPercent.toFixed(2)}%)
-									</span>
+								<div class="stat">
+									<span class="stat-label">Initial Deposit</span>
+									<span class="stat-value">{formatCurrency(portfolio.initialDeposit)}</span>
 								</div>
 							</div>
-						</div>
+							
+							<div class="portfolio-pl">
+								<span class="pl-label">Profit/Loss</span>
+								<span class="pl-value" class:profit={portfolio.profitLoss.absolute >= 0} class:loss={portfolio.profitLoss.absolute < 0}>
+									{portfolio.profitLoss.absolute >= 0 ? '+' : ''}{formatCurrency(portfolio.profitLoss.absolute)}
+									<span class="pl-percent">({portfolio.profitLoss.percentage.toFixed(2)}%)</span>
+								</span>
+							</div>
+							
+							<div class="portfolio-holdings">
+								<span class="holdings-count">
+									{Object.keys(portfolio.holdings).length} {Object.keys(portfolio.holdings).length === 1 ? 'Token' : 'Tokens'}
+								</span>
+							</div>
+						</a>
 					{/each}
 				</div>
 			{/if}
-		</div>
-
-		<!-- Quick Actions -->
-		<div class="actions-card">
-			<h2>⚡ Quick Actions</h2>
-			<div class="action-buttons">
-				<a href="/simulated/trade" class="action-btn primary">
-					<span class="icon">💱</span>
-					<span>Trade</span>
-				</a>
-				<a href="/simulated/deposit" class="action-btn">
-					<span class="icon">💰</span>
-					<span>Deposit</span>
-				</a>
-				<a href="/simulated/withdraw" class="action-btn">
-					<span class="icon">🏦</span>
-					<span>Withdraw</span>
-				</a>
-				<a href="/simulated/history" class="action-btn">
-					<span class="icon">📜</span>
-					<span>History</span>
-				</a>
-			</div>
 		</div>
 	</div>
 </div>
@@ -141,17 +162,18 @@
 <style>
 	.simulation-dashboard {
 		padding: 2rem;
-		max-width: 1200px;
+		max-width: 1400px;
 		margin: 0 auto;
 	}
 
 	.container {
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
+		gap: 2rem;
 	}
 
-	.summary-card, .holdings-card, .actions-card {
+	/* Summary Card */
+	.summary-card {
 		background: white;
 		border-radius: 1rem;
 		padding: 1.5rem;
@@ -161,11 +183,12 @@
 	h2 {
 		margin: 0 0 1rem 0;
 		font-size: 1.25rem;
+		font-weight: 600;
 	}
 
 	.summary-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 		gap: 1rem;
 	}
 
@@ -198,98 +221,242 @@
 		color: #ef4444;
 	}
 
-	.empty-state {
-		text-align: center;
-		padding: 2rem;
-		color: #666;
+	/* Portfolios Section */
+	.portfolios-section {
+		background: white;
+		border-radius: 1rem;
+		padding: 1.5rem;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	}
 
-	.holdings-list {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	.holding-item {
-		border: 1px solid #e0e0e0;
-		border-radius: 0.5rem;
-		padding: 1rem;
-	}
-
-	.holding-header {
+	.section-header {
 		display: flex;
 		justify-content: space-between;
-		margin-bottom: 0.75rem;
-		padding-bottom: 0.75rem;
-		border-bottom: 1px solid #e0e0e0;
+		align-items: center;
+		margin-bottom: 1.5rem;
 	}
 
-	.symbol {
-		font-size: 1.125rem;
-		font-weight: 700;
+	.create-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.75rem 1.5rem;
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		color: white;
+		border-radius: 0.5rem;
+		text-decoration: none;
+		font-weight: 600;
+		transition: all 0.2s;
+		box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+	}
+
+	.create-btn:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+	}
+
+	.create-btn .icon {
+		font-size: 1.25rem;
+	}
+
+	/* Empty State */
+	.empty-state-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 4rem 2rem;
+		text-align: center;
+		background: #f8f9fa;
+		border-radius: 0.75rem;
+		border: 2px dashed #e0e0e0;
+	}
+
+	.empty-icon {
+		font-size: 4rem;
+		margin-bottom: 1rem;
+		opacity: 0.5;
+	}
+
+	.empty-state-card h3 {
+		margin: 0 0 0.5rem 0;
+		font-size: 1.5rem;
 		color: #333;
 	}
 
-	.amount {
+	.empty-state-card p {
+		margin: 0 0 1.5rem 0;
+		color: #666;
+		font-size: 1rem;
+	}
+
+	.empty-action-btn {
+		padding: 0.75rem 2rem;
+		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+		color: white;
+		border-radius: 0.5rem;
+		text-decoration: none;
+		font-weight: 600;
+		transition: all 0.2s;
+	}
+
+	.empty-action-btn:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+	}
+
+	/* Portfolio Grid */
+	.portfolio-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		gap: 1.5rem;
+	}
+
+	/* Portfolio Card */
+	.portfolio-card {
+		display: flex;
+		flex-direction: column;
+		padding: 1.5rem;
+		background: white;
+		border: 2px solid #e0e0e0;
+		border-radius: 0.75rem;
+		text-decoration: none;
+		color: inherit;
+		transition: all 0.2s;
+		cursor: pointer;
+	}
+
+	.portfolio-card:hover {
+		border-color: #667eea;
+		transform: translateY(-4px);
+		box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+	}
+
+	.portfolio-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 0.75rem;
+		gap: 1rem;
+	}
+
+	.portfolio-name {
+		margin: 0;
+		font-size: 1.25rem;
+		font-weight: 700;
+		color: #333;
+		word-break: break-word;
+	}
+
+	.portfolio-date {
+		font-size: 0.75rem;
+		color: #999;
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.portfolio-description {
+		margin: 0 0 1rem 0;
 		font-size: 0.875rem;
 		color: #666;
+		line-height: 1.5;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
 	}
 
-	.holding-details {
+	.portfolio-stats {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-		gap: 0.75rem;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+		margin-bottom: 1rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid #e0e0e0;
 	}
 
-	.detail {
+	.stat {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
 	}
 
-	.detail-label {
+	.stat-label {
 		font-size: 0.75rem;
 		color: #666;
+		font-weight: 500;
 	}
 
-	.detail-value {
-		font-size: 0.875rem;
-		font-weight: 600;
+	.stat-value {
+		font-size: 1rem;
+		font-weight: 700;
 		color: #333;
 	}
 
-	.action-buttons {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-		gap: 1rem;
+	.portfolio-pl {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0.75rem;
+		background: #f8f9fa;
+		border-radius: 0.5rem;
+		margin-bottom: 0.75rem;
 	}
 
-	.action-btn {
+	.pl-label {
+		font-size: 0.875rem;
+		color: #666;
+		font-weight: 500;
+	}
+
+	.pl-value {
+		font-size: 1rem;
+		font-weight: 700;
 		display: flex;
-		flex-direction: column;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 1.5rem 1rem;
-		border: 2px solid #e0e0e0;
-		border-radius: 0.75rem;
-		text-decoration: none;
-		color: #333;
-		transition: all 0.2s;
 	}
 
-	.action-btn:hover {
-		border-color: #667eea;
-		transform: translateY(-2px);
-		box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+	.pl-percent {
+		font-size: 0.875rem;
+		opacity: 0.8;
 	}
 
-	.action-btn.primary {
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		color: white;
-		border-color: transparent;
+	.portfolio-holdings {
+		display: flex;
+		justify-content: flex-end;
 	}
 
-	.icon {
-		font-size: 2rem;
+	.holdings-count {
+		font-size: 0.875rem;
+		color: #666;
+		padding: 0.25rem 0.75rem;
+		background: #f0f0f0;
+		border-radius: 1rem;
+	}
+
+	/* Responsive */
+	@media (max-width: 768px) {
+		.simulation-dashboard {
+			padding: 1rem;
+		}
+
+		.summary-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.portfolio-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.section-header {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 1rem;
+		}
+
+		.create-btn {
+			justify-content: center;
+		}
 	}
 </style>
