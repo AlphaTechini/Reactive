@@ -21,7 +21,7 @@
 	<title>Reactive Portfolio - Intelligent Automated Trading</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
+<div class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-blue-900 text-white overflow-hidden">
 	<!-- Animated Background -->
 	<div class="absolute inset-0 overflow-hidden pointer-events-none">
 		<div class="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
