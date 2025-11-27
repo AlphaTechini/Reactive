@@ -8,4 +8,12 @@
 	<title>Reactive Portfolio - Intelligent Automated Trading</title>
 </svelte:head>
 
-{@render children?.()}
+<div class="contents">
+	{@render children?.()}
+</div>
+
+<style>
+	:global(body) {
+		background: transparent !important;
+	}
+</style>

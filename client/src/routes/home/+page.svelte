@@ -17,7 +17,19 @@
 	}
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-blue-900 text-white overflow-hidden">
+<div class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white overflow-hidden">
+	<!-- Simple Header -->
+	<header class="relative z-20 px-4 sm:px-6 lg:px-8 py-6">
+		<div class="flex justify-between items-center">
+			<div class="flex items-center gap-3">
+				<div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+					<svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>
+				</div>
+				<h1 class="text-2xl font-bold">Reactive Portfolio</h1>
+			</div>
+		</div>
+	</header>
+
 	<!-- Animated Background -->
 	<div class="absolute inset-0 overflow-hidden pointer-events-none">
 		<div class="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-screen filter blur-xl opacity-20 animate-blob"></div>
