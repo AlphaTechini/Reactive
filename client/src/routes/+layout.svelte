@@ -85,9 +85,11 @@
 </svelte:head>
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
 	<Toaster position="top-right" />
-	<Header {toggleSidebar} />
+	<Header {toggleSidebar} {sidebarOpen} />
 	<div class="flex">
-		<NavigationSidebar bind:open={sidebarOpen} />
+		{#if sidebarOpen}
+			<NavigationSidebar bind:open={sidebarOpen} />
+		{/if}
 		<div class="flex-1 overflow-hidden">
 			{#if initializingServices}
 				<div class="flex items-center justify-center min-h-screen p-4">

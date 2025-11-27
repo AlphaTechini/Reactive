@@ -5,15 +5,20 @@ import { parseTokenConfig } from './tokenConfig.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-// Helia IPFS integration
-import { 
-  initHelia, 
-  updatePrices, 
-  updateUserWallets,
-  fetchJSON,
-  storeJSON 
-} from '../../lib/heliaStorage.js';
-import { centralStorage } from '../../lib/centralStorage.js';
+// Helia IPFS integration (optional - gracefully degrades if not available)
+let initHelia, updatePrices, updateUserWallets, fetchJSON, storeJSON;
+try {
+  const heliaModule = await import('../lib/heliaStorage.js');
+  initHelia = heliaModule.initHelia;
+  updatePrices = heliaModule.updatePrices;
+  updateUserWallets = heliaModule.updateUserWallets;
+  fetchJ../lib/heliaStorage.jsON;
+  storeJSON = heliaModule.storeJ../lib/centralStorage.js
+} catch (e) {
+  console.warn('⚠️ Helia IPFS module not available - running without IPFS support');
+}
+
+import { centralStorage } from '../lib/centralStorage.js';
 
 // Load environment variables safely by searching upwards for a .env file
 function loadEnvUpwards() {
@@ -96,6 +101,11 @@ try {
 
 // Initialize IPFS node
 async function initializeIPFS() {
+  if (!initHelia) {
+    fastify.log.info('ℹ️ IPFS module not available - running without IPFS support');
+    return;
+  }
+  
   try {
     fastify.log.info('🚀 Initializing IPFS node for decentralized storage...');
     ipfsNode = await initHelia();

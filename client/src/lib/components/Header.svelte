@@ -44,6 +44,7 @@
   
   import ThemeToggle from './ThemeToggle.svelte';
   export let toggleSidebar;
+  export let sidebarOpen = false;
   $: shortAddress = walletService.formatAddress($walletAddress);
   $: formattedBalance = walletService.formatBalance($walletBalance);
   const go = (p) => (e) => { e.preventDefault(); goto(p); };
@@ -52,10 +53,18 @@
   <div class="px-4 sm:px-6 lg:px-8">
     <div class="flex justify-between items-center h-16 gap-4">
       <div class="flex items-center">
-        <button on:click={toggleSidebar} class="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 lg:hidden" aria-label="Open sidebar">
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        <button on:click={toggleSidebar} class="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700 transition-colors" aria-label="{sidebarOpen ? 'Close' : 'Open'} sidebar" title="{sidebarOpen ? 'Close' : 'Open'} Navigation">
+          {#if sidebarOpen}
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          {:else}
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          {/if}
         </button>
-        <div class="flex items-center ml-4 lg:ml-0">
+        <div class="flex items-center ml-4">
           <div class="flex items-center">
             <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>
