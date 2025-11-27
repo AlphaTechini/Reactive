@@ -17,12 +17,12 @@
 	}
 </script>
 
-<div class="min-h-screen bg-white dark:bg-black text-gray-900 dark:text-white overflow-hidden transition-colors duration-300">
+<div class="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-blue-900 text-white overflow-hidden">
 	<!-- Animated Background -->
 	<div class="absolute inset-0 overflow-hidden pointer-events-none">
-		<div class="absolute top-20 left-10 w-72 h-72 bg-purple-500 dark:bg-purple-700 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-10 dark:opacity-5 animate-blob"></div>
-		<div class="absolute top-40 right-10 w-72 h-72 bg-blue-500 dark:bg-blue-700 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-10 dark:opacity-5 animate-blob animation-delay-2000"></div>
-		<div class="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 dark:bg-pink-700 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-10 dark:opacity-5 animate-blob animation-delay-4000"></div>
+		<div class="absolute top-20 left-10 w-72 h-72 bg-purple-500 rounded-full mix-blend-screen filter blur-xl opacity-20 animate-blob"></div>
+		<div class="absolute top-40 right-10 w-72 h-72 bg-blue-500 rounded-full mix-blend-screen filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+		<div class="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-screen filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
 	</div>
 	
 	<div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -36,7 +36,7 @@
 				<span class="text-gray-900 dark:text-white">Start Trading Smart.</span>
 			</h1>
 			
-			<p class="text-xl md:text-2xl text-gray-700 dark:text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+			<p class="text-xl md:text-2xl text-gray-200 mb-8 max-w-3xl mx-auto leading-relaxed">
 				Automated portfolio management that protects your wealth with intelligent stop-loss, 
 				take-profit, and auto-rebalancing strategies.
 			</p>
