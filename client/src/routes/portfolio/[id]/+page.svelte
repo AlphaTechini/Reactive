@@ -911,7 +911,7 @@
 											</div>
 											<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 												<button
-													on:click={() => openBuyModal(token)}
+													onclick={() => openBuyModal(token)}
 													class="p-1 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
 													title="Buy {token.symbol}"
 													aria-label="Buy {token.symbol}"
@@ -921,7 +921,7 @@
 													</svg>
 												</button>
 												<button
-													on:click={() => openSellModal(token)}
+													onclick={() => openSellModal(token)}
 													class="p-1 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
 													title="Sell {token.symbol}"
 													aria-label="Sell {token.symbol}"
