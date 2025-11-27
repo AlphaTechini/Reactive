@@ -3,11 +3,18 @@
   import { goto } from '$app/navigation';
   import { portfolios, fetchPortfolios } from '$lib/stores/portfolios.js';
   import { walletAddress } from '$lib/stores/wallet.js';
+  import { portfolioCount, simulationPortfolios } from '$lib/stores/simulation.js';
+  import { appMode } from '$lib/stores/appMode.js';
   import { onMount } from 'svelte';
   
   let { open = $bindable(false) } = $props();
   
   let showPortfolios = $state(true);
+  
+  // Determine which portfolio count to use based on mode
+  let isSimulation = $derived($appMode === 'simulation');
+  let displayPortfolioCount = $derived(isSimulation ? $portfolioCount : $portfolios.length);
+  let displayPortfolios = $derived(isSimulation ? Object.values($simulationPortfolios) : $portfolios);
   
   onMount(() => {
     if ($walletAddress) {
@@ -83,17 +90,18 @@
           </button>
 
           
-          {#if $portfolios.length > 0}
-            <button onclick={() => navigateTo('/portfolios')} 
+          {#if displayPortfolios.length > 0}
+            {@const portfoliosRoute = isSimulation ? '/simulated/dashboard' : '/portfolios'}
+            <button onclick={() => navigateTo(portfoliosRoute)} 
                     class="flex items-center w-full px-3 py-2 text-sm font-medium rounded-md transition-colors"
-                    class:bg-blue-50={isActive('/portfolios')}
-                    class:text-blue-600={isActive('/portfolios')}
-                    class:dark:bg-blue-900={isActive('/portfolios')}
-                    class:dark:text-blue-400={isActive('/portfolios')}
-                    class:text-gray-700={!isActive('/portfolios')}
-                    class:dark:text-gray-300={!isActive('/portfolios')}
-                    class:hover:bg-gray-100={!isActive('/portfolios')}
-                    class:dark:hover:bg-gray-700={!isActive('/portfolios')}>
+                    class:bg-blue-50={isActive(portfoliosRoute)}
+                    class:text-blue-600={isActive(portfoliosRoute)}
+                    class:dark:bg-blue-900={isActive(portfoliosRoute)}
+                    class:dark:text-blue-400={isActive(portfoliosRoute)}
+                    class:text-gray-700={!isActive(portfoliosRoute)}
+                    class:dark:text-gray-300={!isActive(portfoliosRoute)}
+                    class:hover:bg-gray-100={!isActive(portfoliosRoute)}
+                    class:dark:hover:bg-gray-700={!isActive(portfoliosRoute)}>
               <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
@@ -122,7 +130,7 @@
         <div class="border-t border-gray-200 dark:border-gray-700 my-4"></div>
         
         <!-- Portfolio Section -->
-        {#if $walletAddress}
+        {#if $walletAddress || isSimulation}
           <div class="space-y-1">
             <button onclick={() => showPortfolios = !showPortfolios} 
                     class="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
@@ -130,7 +138,7 @@
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
-                <span>Portfolios ({$portfolios.length})</span>
+                <span>Portfolios ({displayPortfolioCount})</span>
               </div>
               <svg class="w-4 h-4 transition-transform" class:rotate-90={showPortfolios} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -139,7 +147,7 @@
             
             {#if showPortfolios}
               <div class="ml-4 space-y-1">
-                <button onclick={() => navigateTo('/create-portfolio')} 
+                <button onclick={() => navigateTo(isSimulation ? '/simulated/create-portfolio' : '/create-portfolio')} 
                         class="flex items-center w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -147,19 +155,20 @@
                   Create New Portfolio
                 </button>
                 
-                {#if $portfolios.length > 0}
+                {#if displayPortfolios.length > 0}
                   <div class="max-h-64 overflow-y-auto space-y-1">
-                    {#each $portfolios as portfolio (portfolio.id)}
-                      <button onclick={() => navigateTo(`/portfolio/${portfolio.id}`)} 
+                    {#each displayPortfolios as portfolio (isSimulation ? portfolio.name : portfolio.id)}
+                      {@const portfolioPath = isSimulation ? `/simulated/portfolio/${encodeURIComponent(portfolio.name)}` : `/portfolio/${portfolio.id}`}
+                      <button onclick={() => navigateTo(portfolioPath)} 
                               class="flex items-center justify-between w-full px-3 py-2 text-sm rounded-md transition-colors"
-                              class:bg-blue-50={isActive(`/portfolio/${portfolio.id}`)}
-                              class:text-blue-600={isActive(`/portfolio/${portfolio.id}`)}
-                              class:dark:bg-blue-900={isActive(`/portfolio/${portfolio.id}`)}
-                              class:dark:text-blue-400={isActive(`/portfolio/${portfolio.id}`)}
-                              class:text-gray-700={!isActive(`/portfolio/${portfolio.id}`)}
-                              class:dark:text-gray-300={!isActive(`/portfolio/${portfolio.id}`)}
-                              class:hover:bg-gray-100={!isActive(`/portfolio/${portfolio.id}`)}
-                              class:dark:hover:bg-gray-700={!isActive(`/portfolio/${portfolio.id}`)}>
+                              class:bg-blue-50={isActive(portfolioPath)}
+                              class:text-blue-600={isActive(portfolioPath)}
+                              class:dark:bg-blue-900={isActive(portfolioPath)}
+                              class:dark:text-blue-400={isActive(portfolioPath)}
+                              class:text-gray-700={!isActive(portfolioPath)}
+                              class:dark:text-gray-300={!isActive(portfolioPath)}
+                              class:hover:bg-gray-100={!isActive(portfolioPath)}
+                              class:dark:hover:bg-gray-700={!isActive(portfolioPath)}>
                         <div class="flex items-center min-w-0">
                           <div class="w-2 h-2 bg-blue-500 rounded-full mr-2 flex-shrink-0"></div>
                           <span class="truncate">{portfolio.name}</span>
@@ -180,7 +189,11 @@
           </div>
         {:else}
           <div class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center">
-            Connect wallet to view portfolios
+            {#if isSimulation}
+              Enter simulation mode to create portfolios
+            {:else}
+              Connect wallet to view portfolios
+            {/if}
           </div>
         {/if}
       </nav>

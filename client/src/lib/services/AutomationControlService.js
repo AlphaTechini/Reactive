@@ -503,10 +503,12 @@ class AutomationControlService {
       };
       
       // Store in localStorage for persistence across sessions
-      try {
-        localStorage.setItem('automationPreservedSettings', JSON.stringify(this.preservedSettings));
-      } catch (error) {
-        console.warn('⚠️ Failed to store preserved settings in localStorage:', error);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('automationPreservedSettings', JSON.stringify(this.preservedSettings));
+        } catch (error) {
+          console.warn('⚠️ Failed to store preserved settings in localStorage:', error);
+        }
       }
       
       console.log(`💾 Settings preserved successfully: ${this.preservedSettings.id}`);
@@ -960,10 +962,12 @@ class AutomationControlService {
   clearPreservedSettings() {
     this.preservedSettings = null;
     
-    try {
-      localStorage.removeItem('automationPreservedSettings');
-    } catch (error) {
-      console.warn('⚠️ Failed to clear preserved settings from localStorage:', error);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('automationPreservedSettings');
+      } catch (error) {
+        console.warn('⚠️ Failed to clear preserved settings from localStorage:', error);
+      }
     }
     
     this.updatePreservedSettingsStore();
@@ -974,6 +978,11 @@ class AutomationControlService {
    * Load preserved settings from storage
    */
   async loadPreservedSettings() {
+    if (typeof window === 'undefined') {
+      this.updatePreservedSettingsStore();
+      return;
+    }
+    
     try {
       const stored = localStorage.getItem('automationPreservedSettings');
       if (stored) {
@@ -1153,10 +1162,12 @@ class AutomationControlService {
     this.disabledServices.clear();
     
     // Clear localStorage
-    try {
-      localStorage.removeItem('automationPreservedSettings');
-    } catch (error) {
-      console.warn('⚠️ Failed to clear localStorage during cleanup:', error);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('automationPreservedSettings');
+      } catch (error) {
+        console.warn('⚠️ Failed to clear localStorage during cleanup:', error);
+      }
     }
     
     this.state = {

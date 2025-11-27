@@ -19,6 +19,18 @@ class SimulationTradingService {
 	 * Initialize or get simulation portfolio
 	 */
 	getPortfolio() {
+		// SSR guard
+		if (typeof window === 'undefined') {
+			return {
+				balance: this.INITIAL_BALANCE,
+				holdings: {},
+				transactions: [],
+				createdAt: Date.now(),
+				totalDeposited: this.INITIAL_BALANCE,
+				totalWithdrawn: 0
+			};
+		}
+		
 		const stored = localStorage.getItem(this.STORAGE_KEY);
 		if (stored) {
 			return JSON.parse(stored);
@@ -42,6 +54,7 @@ class SimulationTradingService {
 	 * Save portfolio to localStorage
 	 */
 	savePortfolio(portfolio) {
+		if (typeof window === 'undefined') return;
 		localStorage.setItem(this.STORAGE_KEY, JSON.stringify(portfolio));
 	}
 
@@ -266,7 +279,9 @@ class SimulationTradingService {
 	 * Reset portfolio (for testing)
 	 */
 	reset() {
-		localStorage.removeItem(this.STORAGE_KEY);
+		if (typeof window !== 'undefined') {
+			localStorage.removeItem(this.STORAGE_KEY);
+		}
 		return this.getPortfolio();
 	}
 

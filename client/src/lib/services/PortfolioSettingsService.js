@@ -22,6 +22,11 @@ class PortfolioSettingsService {
    */
   loadSettings(portfolioId) {
     try {
+      // SSR guard
+      if (typeof window === 'undefined') {
+        return this.getDefaultSettings();
+      }
+      
       const savedSettings = localStorage.getItem(`portfolio_settings_${portfolioId}`);
       
       if (savedSettings) {
@@ -55,8 +60,10 @@ class PortfolioSettingsService {
       // Add timestamp
       settings.updatedAt = Date.now();
       
-      // Save to localStorage
-      localStorage.setItem(`portfolio_settings_${portfolioId}`, JSON.stringify(settings));
+      // Save to localStorage (SSR guard)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`portfolio_settings_${portfolioId}`, JSON.stringify(settings));
+      }
       
       // Update in-memory cache
       this.settings.set(portfolioId, settings);
@@ -368,7 +375,9 @@ class PortfolioSettingsService {
    */
   deleteSettings(portfolioId) {
     try {
-      localStorage.removeItem(`portfolio_settings_${portfolioId}`);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`portfolio_settings_${portfolioId}`);
+      }
       this.settings.delete(portfolioId);
       this.stopMonitoring(portfolioId);
       this.updateStore();

@@ -10,7 +10,8 @@
 		stopPriceUpdates,
 		refreshPortfolioPrices,
 		depositToPortfolio,
-		withdrawFromPortfolio
+		withdrawFromPortfolio,
+		getPortfolioTransactions
 	} from '$lib/stores/simulation.js';
 	import { simulationTradingService } from '$lib/services/SimulationTradingService.js';
 	import priceService from '$lib/priceService.js';
@@ -20,6 +21,9 @@
 	// Get portfolio name from URL
 	$: portfolioName = $page.params.name;
 	$: portfolio = $simulationPortfolios[portfolioName];
+	
+	// Get transactions for this portfolio
+	$: transactions = portfolioName ? getPortfolioTransactions(portfolioName) : [];
 
 	// Token list organized by category
 	const tokensByCategory = {
@@ -33,9 +37,12 @@
 	let allocations = {}; // { symbol: percentage }
 	let prices = {}; // { symbol: price }
 	let loadingPrices = true;
+	let refreshingPrices = false;
 	let error = '';
 	let success = '';
 	let isExecuting = false;
+	let pricesFetchAttempts = 0;
+	let lastPriceFetchTime = null;
 
 	// Modal states
 	let showDepositModal = false;
@@ -56,6 +63,9 @@
 
 	// Calculate category metrics for dashboard view
 	$: categoryMetrics = calculateCategoryMetrics();
+
+	// Check if prices are stale (older than 5 minutes)
+	$: pricesAreStale = lastPriceFetchTime && (Date.now() - lastPriceFetchTime) > 5 * 60 * 1000;
 
 	function calculateTokenAmounts() {
 		if (!portfolio) return {};
@@ -131,7 +141,7 @@
 	// Initialize prices and allocations
 	onMount(async () => {
 		if (!portfolio) {
-			error = 'Portfolio not found';
+			error = 'Portfolio not found. It may have been deleted or the name is incorrect.';
 			return;
 		}
 
@@ -152,6 +162,7 @@
 				await fetchPrices();
 			} catch (err) {
 				console.error('Failed to load prices:', err);
+				// Don't block dashboard view if prices fail
 			}
 			return;
 		}
@@ -162,14 +173,15 @@
 		try {
 			// Initialize price service if needed
 			if (!priceService.isInitialized) {
+				console.log('🔄 Initializing price service...');
 				await priceService.initialize();
 			}
 
 			// Fetch current prices
 			await fetchPrices();
 		} catch (err) {
-			console.error('Failed to initialize:', err);
-			error = 'Failed to load prices. Please try again.';
+			console.error('❌ Failed to initialize:', err);
+			error = 'Failed to load token prices. Please refresh the page or try again later.';
 		} finally {
 			loadingPrices = false;
 		}
@@ -182,38 +194,93 @@
 	});
 
 	async function fetchPrices() {
+		const maxAttempts = 3;
+		pricesFetchAttempts++;
+		
 		try {
 			loadingPrices = true;
 			error = '';
 
+			console.log(`📊 Fetching prices (attempt ${pricesFetchAttempts})...`);
+
 			// Get all prices from price service
 			const allPrices = priceService.globalStorage.getAllPrices();
 			
+			// Validate we have price data
+			if (!allPrices || Object.keys(allPrices).length === 0) {
+				throw new Error('No price data available. The price service may be unavailable.');
+			}
+			
 			// Extract prices for our tokens
 			const newPrices = {};
+			const missingPrices = [];
+			
 			for (const token of INITIAL_TOKEN_LIST) {
 				// Find price by symbol
 				const priceEntry = Object.values(allPrices).find(p => p.symbol === token.symbol);
-				if (priceEntry && priceEntry.price) {
+				if (priceEntry && priceEntry.price && priceEntry.price > 0) {
 					newPrices[token.symbol] = priceEntry.price;
 				} else {
-					console.warn(`Price not found for ${token.symbol}`);
+					missingPrices.push(token.symbol);
 				}
 			}
 
+			// Check if we have enough prices
+			if (Object.keys(newPrices).length === 0) {
+				throw new Error('No valid token prices found. Please try again.');
+			}
+
 			prices = newPrices;
+			lastPriceFetchTime = Date.now();
+			pricesFetchAttempts = 0; // Reset on success
+			
 			console.log(`✅ Loaded ${Object.keys(newPrices).length} token prices`);
+			
+			if (missingPrices.length > 0) {
+				console.warn(`⚠️ Missing prices for: ${missingPrices.join(', ')}`);
+			}
 		} catch (err) {
-			console.error('Failed to fetch prices:', err);
-			error = 'Failed to fetch prices. Please try again.';
+			console.error(`❌ Failed to fetch prices (attempt ${pricesFetchAttempts}):`, err);
+			
+			if (pricesFetchAttempts < maxAttempts) {
+				// Retry with exponential backoff
+				const delay = Math.pow(2, pricesFetchAttempts - 1) * 1000;
+				console.log(`⏳ Retrying in ${delay}ms...`);
+				
+				error = `Loading prices... (attempt ${pricesFetchAttempts}/${maxAttempts})`;
+				
+				await new Promise(resolve => setTimeout(resolve, delay));
+				return fetchPrices(); // Recursive retry
+			} else {
+				error = 'Failed to fetch token prices after multiple attempts. Please refresh the page or try again later.';
+			}
 		} finally {
 			loadingPrices = false;
+			refreshingPrices = false;
+		}
+	}
+
+	async function handleRefreshPrices() {
+		if (refreshingPrices || loadingPrices) {
+			return;
+		}
+		
+		refreshingPrices = true;
+		pricesFetchAttempts = 0; // Reset attempts for manual refresh
+		
+		try {
+			await fetchPrices();
+			success = 'Prices refreshed successfully';
+			setTimeout(() => success = '', 3000);
+		} catch (err) {
+			console.error('Failed to refresh prices:', err);
 		}
 	}
 
 	function handlePercentageChange(symbol, value) {
 		const numValue = parseFloat(value) || 0;
 		if (numValue < 0) return;
+		if (numValue > 100) return; // Prevent single token > 100%
 		
 		allocations = {
 			...allocations,
@@ -223,7 +290,8 @@
 
 	function autoDistribute() {
 		if (selectedTokens.length === 0) {
-			error = 'Please select at least one token first';
+			error = 'Please select at least one token first by entering a percentage';
+			setTimeout(() => error = '', 3000);
 			return;
 		}
 
@@ -245,10 +313,14 @@
 			newAllocations[token.symbol] = 0;
 		}
 		allocations = newAllocations;
+		success = 'All tokens selected. Use Auto Distribute to assign percentages.';
+		setTimeout(() => success = '', 3000);
 	}
 
 	function clearAll() {
 		allocations = {};
+		success = 'All selections cleared';
+		setTimeout(() => success = '', 3000);
 	}
 
 	async function confirmAndCreate() {
@@ -262,6 +334,13 @@
 			return;
 		}
 
+		// Check if we have prices for all selected tokens
+		const missingPrices = selectedTokens.filter(symbol => !prices[symbol]);
+		if (missingPrices.length > 0) {
+			error = `Missing prices for: ${missingPrices.join(', ')}. Please refresh prices and try again.`;
+			return;
+		}
+
 		isExecuting = true;
 		error = '';
 		success = '';
@@ -272,20 +351,18 @@
 			// Step 1: Validate allocations
 			const validation = simulationTradingService.validateAllocations(allocations);
 			if (!validation.valid) {
-				error = validation.errors.join(', ');
-				return;
+				throw new Error(`Invalid allocations: ${validation.errors.join(', ')}`);
 			}
 			console.log('✅ Allocations validated');
 
-			// Step 2: Fetch current prices for all selected tokens
+			// Step 2: Fetch current prices for all selected tokens (with retry logic)
 			console.log('📊 Fetching current prices for selected tokens...');
-			await fetchPrices();
+			const currentPrices = await simulationTradingService.fetchCurrentPrices(selectedTokens);
 			
 			// Verify we have prices for all selected tokens
-			const missingPrices = selectedTokens.filter(symbol => !prices[symbol]);
-			if (missingPrices.length > 0) {
-				error = `Missing prices for: ${missingPrices.join(', ')}. Please refresh prices and try again.`;
-				return;
+			const stillMissingPrices = selectedTokens.filter(symbol => !currentPrices[symbol]);
+			if (stillMissingPrices.length > 0) {
+				throw new Error(`Unable to fetch prices for: ${stillMissingPrices.join(', ')}. Please try again.`);
 			}
 			console.log('✅ Current prices fetched for all tokens');
 
@@ -294,7 +371,7 @@
 			const holdings = simulationTradingService.calculateTokenAmounts(
 				allocations,
 				portfolio.currentValue,
-				prices
+				currentPrices
 			);
 			console.log('✅ Token amounts calculated:', Object.keys(holdings).length, 'tokens');
 
@@ -317,12 +394,12 @@
 			console.log('📈 Holdings:', holdings);
 
 			// Show success message briefly before redirect
-			success = 'Portfolio created successfully!';
+			success = 'Portfolio created successfully! Redirecting...';
 			
 			// Redirect to main dashboard after a short delay
 			setTimeout(() => {
 				goto(`/simulated/dashboard`);
-			}, 500);
+			}, 1000);
 		} catch (err) {
 			console.error('❌ Failed to create portfolio:', err);
 			error = err.message || 'Failed to create portfolio. Please try again.';
@@ -706,8 +783,13 @@
 							{@const initialValue = holding.amount * holding.initialPrice}
 							{@const holdingPL = currentValue - initialValue}
 							{@const holdingPLPercent = initialValue > 0 ? (holdingPL / initialValue) * 100 : 0}
+							{@const priceChange = holding.initialPrice > 0 ? ((holding.currentPrice - holding.initialPrice) / holding.initialPrice) * 100 : 0}
+							{@const tokenSettings = portfolio.settings?.tokenSettings?.[symbol]}
+							{@const hasAutomation = tokenSettings && tokenSettings.enabled}
+							{@const lastActionPrice = holding.lastActionPrice || holding.initialPrice}
+							{@const priceChangeFromLastAction = lastActionPrice > 0 ? ((holding.currentPrice - lastActionPrice) / lastActionPrice) * 100 : 0}
 							
-							<div class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+							<div class="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-l-4 {hasAutomation ? 'border-blue-500' : 'border-transparent'}">
 								<!-- Token Info -->
 								<div class="flex-1 min-w-0">
 									<div class="flex items-center gap-2 mb-1">
@@ -719,39 +801,235 @@
 												{token.name}
 											</span>
 										{/if}
+										{#if hasAutomation}
+											<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full" title="Automation enabled">
+												<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+												</svg>
+												Auto
+											</span>
+										{/if}
 									</div>
-									<div class="flex items-center gap-4 text-sm">
-										<span class="text-gray-600 dark:text-gray-300">
-											{holding.amount.toFixed(6)} tokens
-										</span>
-										<span class="text-gray-500 dark:text-gray-400">
-											@ ${formatPrice(holding.currentPrice)}
-										</span>
+									
+									<!-- Token Quantity Display: "{quantity} {symbol}" format -->
+									<div class="space-y-1 mb-2">
+										<div class="flex items-center gap-2 text-sm">
+											<span class="font-mono text-gray-900 dark:text-white font-semibold">
+												{holding.amount.toFixed(6)} {symbol}
+											</span>
+										</div>
+										<div class="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+											<span>
+												Price: ${formatPrice(holding.currentPrice)}
+											</span>
+											<span>•</span>
+											<span>
+												Value: ${currentValue.toFixed(2)}
+											</span>
+										</div>
 									</div>
-								</div>
 
-								<!-- Current Value -->
-								<div class="text-right">
-									<p class="text-lg font-bold text-gray-900 dark:text-white">
-										${currentValue.toFixed(2)}
-									</p>
-									<p class="text-sm {holdingPL >= 0 ? 'text-green-600' : 'text-red-600'}">
-										{holdingPL >= 0 ? '+' : ''}{holdingPLPercent.toFixed(2)}%
-									</p>
+									<!-- Per-Token Metrics -->
+									<div class="grid grid-cols-2 gap-2 text-xs">
+										<!-- Per-Token P/L -->
+										<div class="bg-white dark:bg-gray-800 rounded-lg p-2">
+											<p class="text-gray-500 dark:text-gray-400 mb-0.5">Token P/L</p>
+											<p class="font-semibold {holdingPL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+												{holdingPL >= 0 ? '+' : ''}{holdingPLPercent.toFixed(2)}%
+											</p>
+											<p class="text-xs {holdingPL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+												{holdingPL >= 0 ? '+' : ''}${holdingPL.toFixed(2)}
+											</p>
+										</div>
+
+										<!-- Price Change -->
+										<div class="bg-white dark:bg-gray-800 rounded-lg p-2">
+											<p class="text-gray-500 dark:text-gray-400 mb-0.5">Price Change</p>
+											<p class="font-semibold {priceChange >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+												{priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+											</p>
+											<p class="text-xs text-gray-500 dark:text-gray-400">
+												from ${formatPrice(holding.initialPrice)}
+											</p>
+										</div>
+
+										<!-- Last Action Price (if automation enabled) -->
+										{#if hasAutomation && holding.lastActionPrice}
+											<div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 border border-blue-200 dark:border-blue-800">
+												<p class="text-blue-700 dark:text-blue-300 mb-0.5">Last Action</p>
+												<p class="font-semibold text-blue-900 dark:text-blue-100">
+													${formatPrice(lastActionPrice)}
+												</p>
+												<p class="text-xs {priceChangeFromLastAction >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+													{priceChangeFromLastAction >= 0 ? '+' : ''}{priceChangeFromLastAction.toFixed(2)}%
+												</p>
+											</div>
+										{/if}
+
+										<!-- Token Settings Status (if automation enabled) -->
+										{#if hasAutomation && tokenSettings}
+											<div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2 border border-purple-200 dark:border-purple-800">
+												<p class="text-purple-700 dark:text-purple-300 mb-0.5">Settings</p>
+												<div class="space-y-0.5">
+													{#if tokenSettings.sellPercent}
+														<p class="text-xs text-purple-900 dark:text-purple-100">
+															Sell: +{tokenSettings.sellPercent}%
+														</p>
+													{/if}
+													{#if tokenSettings.buyPercent}
+														<p class="text-xs text-purple-900 dark:text-purple-100">
+															Buy: -{tokenSettings.buyPercent}%
+														</p>
+													{/if}
+													{#if tokenSettings.stopLossPercent}
+														<p class="text-xs text-purple-900 dark:text-purple-100">
+															Stop: -{tokenSettings.stopLossPercent}%
+														</p>
+													{/if}
+												</div>
+											</div>
+										{/if}
+									</div>
+
+									<!-- Automation Indicators -->
+									{#if hasAutomation && tokenSettings}
+										<div class="mt-2 flex items-center gap-2 flex-wrap">
+											<!-- Sell Trigger Indicator -->
+											{#if tokenSettings.sellPercent && priceChangeFromLastAction >= tokenSettings.sellPercent}
+												<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-medium rounded-full animate-pulse">
+													<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+													</svg>
+													Sell Trigger
+												</span>
+											{/if}
+
+											<!-- Buy Trigger Indicator -->
+											{#if tokenSettings.buyPercent && priceChangeFromLastAction <= -tokenSettings.buyPercent}
+												<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full animate-pulse">
+													<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+													</svg>
+													Buy Trigger
+												</span>
+											{/if}
+
+											<!-- Stop Loss Trigger Indicator -->
+											{#if tokenSettings.stopLossPercent && priceChangeFromLastAction <= -tokenSettings.stopLossPercent}
+												<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-medium rounded-full animate-pulse">
+													<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+													</svg>
+													Stop Loss
+												</span>
+											{/if}
+										</div>
+									{/if}
 								</div>
 
 								<!-- Percentage of Portfolio -->
-								<div class="text-right w-20">
+								<div class="text-right flex-shrink-0 w-20">
 									<p class="text-sm text-gray-600 dark:text-gray-300">
 										{holding.percentage.toFixed(1)}%
 									</p>
 									<p class="text-xs text-gray-500 dark:text-gray-400">
 										of portfolio
 									</p>
+									{#if tokenSettings?.targetPercentage}
+										<p class="text-xs text-blue-600 dark:text-blue-400 mt-1">
+											Target: {tokenSettings.targetPercentage.toFixed(1)}%
+										</p>
+									{/if}
 								</div>
 							</div>
 						{/each}
 					</div>
+				</div>
+
+				<!-- Transaction History -->
+				<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+					<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Transaction History</h3>
+					
+					{#if transactions.length === 0}
+						<div class="text-center py-8">
+							<p class="text-gray-500 dark:text-gray-400">No transactions yet</p>
+						</div>
+					{:else}
+						<div class="space-y-2 max-h-96 overflow-y-auto">
+							{#each transactions as tx}
+								<div class="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+									<!-- Transaction Icon & Type -->
+									<div class="flex-shrink-0">
+										{#if tx.type === 'create'}
+											<div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+												<span class="text-xl">🎯</span>
+											</div>
+										{:else if tx.type === 'buy'}
+											<div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+												<span class="text-xl">📈</span>
+											</div>
+										{:else if tx.type === 'sell'}
+											<div class="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+												<span class="text-xl">📉</span>
+											</div>
+										{:else if tx.type === 'deposit'}
+											<div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+												<span class="text-xl">💰</span>
+											</div>
+										{:else if tx.type === 'withdraw'}
+											<div class="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+												<span class="text-xl">💸</span>
+											</div>
+										{/if}
+									</div>
+
+									<!-- Transaction Details -->
+									<div class="flex-1 min-w-0">
+										<div class="flex items-center gap-2 mb-1">
+											<span class="font-semibold text-gray-900 dark:text-white capitalize">
+												{tx.type}
+											</span>
+											{#if tx.details.symbol}
+												<span class="text-sm text-gray-600 dark:text-gray-300">
+													{tx.details.symbol}
+												</span>
+											{/if}
+										</div>
+										
+										<div class="text-sm text-gray-600 dark:text-gray-300">
+											{#if tx.type === 'create'}
+												Portfolio created with ${tx.details.value.toFixed(2)}
+											{:else if tx.type === 'buy'}
+												Bought {tx.details.tokenAmount.toFixed(6)} tokens for ${tx.details.usdAmount.toFixed(2)}
+												<span class="text-xs text-gray-500 dark:text-gray-400">
+													@ ${formatPrice(tx.details.price)}
+												</span>
+											{:else if tx.type === 'sell'}
+												Sold {tx.details.tokenAmount.toFixed(6)} tokens for ${tx.details.usdAmount.toFixed(2)}
+												<span class="text-xs {tx.details.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}">
+													({tx.details.profitLoss >= 0 ? '+' : ''}${tx.details.profitLoss.toFixed(2)})
+												</span>
+											{:else if tx.type === 'deposit'}
+												Deposited ${tx.details.value.toFixed(2)}
+											{:else if tx.type === 'withdraw'}
+												Withdrew ${tx.details.value.toFixed(2)}
+											{/if}
+										</div>
+									</div>
+
+									<!-- Timestamp -->
+									<div class="text-right flex-shrink-0">
+										<p class="text-xs text-gray-500 dark:text-gray-400">
+											{new Date(tx.timestamp).toLocaleDateString()}
+										</p>
+										<p class="text-xs text-gray-500 dark:text-gray-400">
+											{new Date(tx.timestamp).toLocaleTimeString()}
+										</p>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</div>
 
 				<!-- Action Buttons -->
@@ -772,8 +1050,17 @@
 			</div>
 		{:else if loadingPrices}
 			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 text-center">
-				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-				<p class="text-gray-600 dark:text-gray-300">Loading token prices...</p>
+				<div class="relative w-16 h-16 mx-auto mb-6">
+					<div class="absolute inset-0 rounded-full border-4 border-blue-200 dark:border-blue-800"></div>
+					<div class="absolute inset-0 rounded-full border-4 border-blue-600 dark:border-blue-400 border-t-transparent animate-spin"></div>
+				</div>
+				<p class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Loading token prices...</p>
+				<p class="text-sm text-gray-500 dark:text-gray-400">Fetching real-time market data</p>
+				<div class="mt-6 flex justify-center gap-2">
+					<div class="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+					<div class="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+					<div class="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+				</div>
 			</div>
 		{:else}
 			<!-- Main Content -->
@@ -781,47 +1068,116 @@
 				<!-- Token Selection (Left - 2 columns) -->
 				<div class="lg:col-span-2 space-y-6">
 					<!-- Action Buttons -->
-					<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
+					<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
+						<!-- Running Total Display -->
+						<div class="mb-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+							<div class="flex items-center justify-between">
+								<div>
+									<p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Allocation Progress</p>
+									<div class="flex items-baseline gap-3">
+										<span class="text-2xl font-bold {isValid ? 'text-green-600 dark:text-green-400' : totalPercentage > 100 ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}">
+											{totalPercentage.toFixed(2)}%
+										</span>
+										<span class="text-sm text-gray-600 dark:text-gray-400">of 100%</span>
+									</div>
+								</div>
+								<div class="text-right">
+									<p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Remaining</p>
+									<span class="text-2xl font-bold {remainingPercentage >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}">
+										{remainingPercentage >= 0 ? remainingPercentage.toFixed(2) : '0.00'}%
+									</span>
+								</div>
+							</div>
+							<!-- Progress bar -->
+							<div class="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+								<div 
+									class="h-full transition-all duration-500 {isValid ? 'bg-gradient-to-r from-green-500 to-green-600' : totalPercentage > 100 ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-blue-500 to-blue-600'}"
+									style="width: {Math.min(totalPercentage, 100)}%"
+								></div>
+							</div>
+						</div>
+						
 						<div class="flex flex-wrap gap-3">
 							<button
 								onclick={selectAll}
-								class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+								class="group px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
+								title="Select all available tokens"
 							>
-								Select All
+								<span class="flex items-center gap-2">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+									Select All
+								</span>
 							</button>
 							<button
 								onclick={clearAll}
-								class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+								class="group px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 hover:scale-105 hover:shadow-md"
+								title="Clear all selections"
 							>
-								Clear All
+								<span class="flex items-center gap-2">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+									</svg>
+									Clear All
+								</span>
 							</button>
 							<button
 								onclick={autoDistribute}
 								disabled={selectedTokens.length === 0}
-								class="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+								class="group px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+								title={selectedTokens.length === 0 ? 'Select tokens first' : 'Distribute percentages equally'}
 							>
-								Auto Distribute
+								<span class="flex items-center gap-2">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+									</svg>
+									Auto Distribute
+								</span>
 							</button>
 							<button
-								onclick={fetchPrices}
-								disabled={loadingPrices}
-								class="ml-auto px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors disabled:opacity-50"
+								onclick={handleRefreshPrices}
+								disabled={loadingPrices || refreshingPrices}
+								class="ml-auto px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-all duration-200 hover:scale-105 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+								title="Refresh token prices"
 							>
-								{loadingPrices ? 'Refreshing...' : '🔄 Refresh Prices'}
+								<span class="flex items-center gap-2">
+									<svg class="w-4 h-4 {loadingPrices || refreshingPrices ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+									</svg>
+									{loadingPrices || refreshingPrices ? 'Refreshing...' : 'Refresh Prices'}
+								</span>
 							</button>
+							{#if pricesAreStale}
+								<div class="flex items-center gap-2 px-3 py-2 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg text-xs text-orange-700 dark:text-orange-300 animate-pulse">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+									</svg>
+									Prices may be stale
+								</div>
+							{/if}
 						</div>
 					</div>
 
 					<!-- Token Categories -->
 					{#each Object.entries(tokensByCategory) as [category, tokens]}
-						<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
-							<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
-								{getCategoryName(category)}
-							</h2>
+						{@const categoryTotal = tokens.reduce((sum, t) => sum + (parseFloat(allocations[t.symbol]) || 0), 0)}
+						<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700">
+							<div class="flex items-center justify-between mb-4">
+								<h2 class="text-xl font-bold text-gray-900 dark:text-white">
+									{getCategoryName(category)}
+								</h2>
+								<!-- Running Total for this category -->
+								{#if categoryTotal > 0}
+									<span class="text-sm font-medium px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+										{categoryTotal.toFixed(2)}% allocated
+									</span>
+								{/if}
+							</div>
 							
 							<div class="space-y-3">
 								{#each tokens as token}
-									<div class="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+									<div class="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
 										<!-- Token Info -->
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center gap-2">
@@ -841,18 +1197,33 @@
 											</div>
 										</div>
 
-										<!-- Percentage Input -->
+										<!-- Percentage Input with Quick Fill -->
 										<div class="flex items-center gap-2">
-											<input
-												type="number"
-												value={allocations[token.symbol] || ''}
-												oninput={(e) => handlePercentageChange(token.symbol, e.target.value)}
-												placeholder="0"
-												min="0"
-												max="100"
-												step="0.01"
-												class="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-right focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-											/>
+											<div class="relative">
+												<input
+													type="number"
+													value={allocations[token.symbol] || ''}
+													oninput={(e) => handlePercentageChange(token.symbol, e.target.value)}
+													placeholder="0"
+													min="0"
+													max="100"
+													step="0.01"
+													class="w-24 px-3 py-2 pr-8 border border-gray-300 dark:border-gray-600 rounded-lg text-right focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+												/>
+												<!-- Quick fill remaining button -->
+												{#if remainingPercentage > 0 && remainingPercentage < 100}
+													<button
+														type="button"
+														onclick={() => handlePercentageChange(token.symbol, remainingPercentage.toFixed(2))}
+														class="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 opacity-0 group-hover:opacity-100 transition-opacity"
+														title={`Fill remaining ${remainingPercentage.toFixed(2)}%`}
+													>
+														<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+														</svg>
+													</button>
+												{/if}
+											</div>
 											<span class="text-gray-600 dark:text-gray-300">%</span>
 										</div>
 
@@ -878,34 +1249,71 @@
 
 				<!-- Summary Panel (Right - 1 column) -->
 				<div class="lg:col-span-1">
-					<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sticky top-8">
-						<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">
+					<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 sticky top-8 border border-gray-200 dark:border-gray-700">
+						<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+							<svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+							</svg>
 							Allocation Summary
 						</h2>
 
 						<!-- Total Percentage -->
-						<div class="mb-6">
-							<div class="flex items-center justify-between mb-2">
-								<span class="text-sm text-gray-600 dark:text-gray-300">Total Allocated</span>
-								<span class="text-2xl font-bold {isValid ? 'text-green-600' : 'text-red-600'}">
+						<div class="mb-6 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-600/50 rounded-xl border border-gray-200 dark:border-gray-600">
+							<div class="flex items-center justify-between mb-3">
+								<span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Allocated</span>
+								<span class="text-3xl font-bold {isValid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} transition-colors duration-300">
 									{totalPercentage.toFixed(2)}%
 								</span>
 							</div>
 							
+							<!-- Remaining Percentage Display -->
+							{#if !isValid && remainingPercentage !== 0}
+								<div class="mb-3 p-3 bg-{remainingPercentage > 0 ? 'blue' : 'red'}-50 dark:bg-{remainingPercentage > 0 ? 'blue' : 'red'}-900/20 border border-{remainingPercentage > 0 ? 'blue' : 'red'}-200 dark:border-{remainingPercentage > 0 ? 'blue' : 'red'}-800 rounded-lg">
+									<div class="flex items-center justify-between">
+										<span class="text-sm font-medium text-{remainingPercentage > 0 ? 'blue' : 'red'}-700 dark:text-{remainingPercentage > 0 ? 'blue' : 'red'}-300">
+											{remainingPercentage > 0 ? 'Remaining' : 'Over Limit'}
+										</span>
+										<span class="text-2xl font-bold text-{remainingPercentage > 0 ? 'blue' : 'red'}-700 dark:text-{remainingPercentage > 0 ? 'blue' : 'red'}-300">
+											{Math.abs(remainingPercentage).toFixed(2)}%
+										</span>
+									</div>
+									{#if remainingPercentage > 0}
+										<p class="text-xs text-{remainingPercentage > 0 ? 'blue' : 'red'}-600 dark:text-{remainingPercentage > 0 ? 'blue' : 'red'}-400 mt-2">
+											💡 Tip: Hover over any token input to quickly fill the remaining percentage
+										</p>
+									{/if}
+								</div>
+							{/if}
+							
 							<!-- Progress Bar -->
-							<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+							<div class="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden shadow-inner">
 								<div 
-									class="h-full transition-all duration-300 {isValid ? 'bg-green-500' : totalPercentage > 100 ? 'bg-red-500' : 'bg-blue-500'}"
+									class="h-full transition-all duration-500 ease-out {isValid ? 'bg-gradient-to-r from-green-500 to-green-600' : totalPercentage > 100 ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-blue-500 to-blue-600'}"
 									style="width: {Math.min(totalPercentage, 100)}%"
 								></div>
+								{#if totalPercentage > 0}
+									<div class="absolute inset-0 flex items-center justify-center">
+										<span class="text-xs font-bold text-white drop-shadow-lg">
+											{Math.min(totalPercentage, 100).toFixed(0)}%
+										</span>
+									</div>
+								{/if}
 							</div>
 
 							{#if !isValid}
-								<p class="text-sm mt-2 {remainingPercentage > 0 ? 'text-blue-600' : 'text-red-600'}">
+								<div class="mt-3 flex items-center gap-2 text-sm {remainingPercentage > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
 									{remainingPercentage > 0 ? `${remainingPercentage.toFixed(2)}% remaining` : `${Math.abs(remainingPercentage).toFixed(2)}% over limit`}
-								</p>
+								</div>
 							{:else}
-								<p class="text-sm text-green-600 mt-2">✓ Ready to create</p>
+								<div class="mt-3 flex items-center gap-2 text-sm text-green-600 dark:text-green-400 animate-pulse">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+									</svg>
+									Ready to create
+								</div>
 							{/if}
 						</div>
 
@@ -984,8 +1392,8 @@
 
 <!-- Deposit Modal -->
 {#if showDepositModal}
-	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick={closeDepositModal}>
-		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6" onclick={(e) => e.stopPropagation()}>
+	<div class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn" onclick={closeDepositModal}>
+		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700 animate-slideUp" onclick={(e) => e.stopPropagation()}>
 			<div class="flex items-center justify-between mb-6">
 				<h2 class="text-2xl font-bold text-gray-900 dark:text-white">
 					💰 Deposit Funds
@@ -1054,8 +1462,8 @@
 
 <!-- Withdraw Modal -->
 {#if showWithdrawModal}
-	<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onclick={closeWithdrawModal}>
-		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6" onclick={(e) => e.stopPropagation()}>
+	<div class="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn" onclick={closeWithdrawModal}>
+		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700 animate-slideUp" onclick={(e) => e.stopPropagation()}>
 			<div class="flex items-center justify-between mb-6">
 				<h2 class="text-2xl font-bold text-gray-900 dark:text-white">
 					💸 Withdraw Funds
@@ -1121,3 +1529,34 @@
 		</div>
 	</div>
 {/if}
+
+
+<style>
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	@keyframes slideUp {
+		from {
+			transform: translateY(20px);
+			opacity: 0;
+		}
+		to {
+			transform: translateY(0);
+			opacity: 1;
+		}
+	}
+
+	.animate-fadeIn {
+		animation: fadeIn 0.2s ease-out;
+	}
+
+	.animate-slideUp {
+		animation: slideUp 0.3s ease-out;
+	}
+</style>

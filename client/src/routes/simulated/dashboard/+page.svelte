@@ -67,87 +67,109 @@
 	<title>Dashboard - Simulation Mode</title>
 </svelte:head>
 
-<div class="simulation-dashboard">
-	<div class="container">
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 		<!-- Account Summary -->
-		<div class="summary-card">
-			<h2>📊 Account Summary</h2>
-			<div class="summary-grid">
-				<div class="summary-item">
-					<span class="label">Available Balance</span>
-					<span class="value">{formatCurrency($simulationBalance)}</span>
+		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-2xl">
+			<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+				<span class="text-2xl">📊</span>
+				Account Summary
+			</h2>
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+				<div class="group p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+					<span class="block text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-2">Available Balance</span>
+					<span class="block text-2xl font-bold text-blue-900 dark:text-blue-100 transition-colors">{formatCurrency($simulationBalance)}</span>
 				</div>
-				<div class="summary-item">
-					<span class="label">Total Portfolio Value</span>
-					<span class="value">{formatCurrency($totalPortfolioValue)}</span>
+				<div class="group p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl border border-purple-200 dark:border-purple-800 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+					<span class="block text-xs font-medium text-purple-700 dark:text-purple-300 uppercase tracking-wider mb-2">Total Portfolio Value</span>
+					<span class="block text-2xl font-bold text-purple-900 dark:text-purple-100 transition-colors">{formatCurrency($totalPortfolioValue)}</span>
 				</div>
-				<div class="summary-item">
-					<span class="label">Total Account Value</span>
-					<span class="value">{formatCurrency($simulationBalance + $totalPortfolioValue)}</span>
+				<div class="group p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 rounded-xl border border-indigo-200 dark:border-indigo-800 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+					<span class="block text-xs font-medium text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-2">Total Account Value</span>
+					<span class="block text-2xl font-bold text-indigo-900 dark:text-indigo-100 transition-colors">{formatCurrency($simulationBalance + $totalPortfolioValue)}</span>
 				</div>
-				<div class="summary-item">
-					<span class="label">Overall P/L</span>
-					<span class="value" class:profit={$overallProfitLoss.absolute >= 0} class:loss={$overallProfitLoss.absolute < 0}>
+				<div class="group p-4 bg-gradient-to-br from-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-50 to-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-100 dark:from-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-900/20 dark:to-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-800/20 rounded-xl border border-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-200 dark:border-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-800 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+					<span class="block text-xs font-medium text-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-700 dark:text-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-300 uppercase tracking-wider mb-2">Overall P/L</span>
+					<span class="block text-2xl font-bold text-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-900 dark:text-{$overallProfitLoss.absolute >= 0 ? 'green' : 'red'}-100 transition-colors">
 						{$overallProfitLoss.absolute >= 0 ? '+' : ''}{formatCurrency($overallProfitLoss.absolute)}
-						({$overallProfitLoss.percentage.toFixed(2)}%)
+						<span class="block text-sm opacity-80">({$overallProfitLoss.percentage.toFixed(2)}%)</span>
 					</span>
 				</div>
 			</div>
 		</div>
 
 		<!-- Portfolios Section -->
-		<div class="portfolios-section">
-			<div class="section-header">
-				<h2>💼 My Portfolios ({$portfolioCount})</h2>
-				<a href="/simulated/create-portfolio" class="create-btn">
-					<span class="icon">➕</span>
+		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-2xl">
+			<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+				<h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+					<span class="text-2xl">💼</span>
+					My Portfolios ({$portfolioCount})
+				</h2>
+				<a 
+					href="/simulated/create-portfolio" 
+					class="group flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
+					title="Create a new portfolio"
+				>
+					<span class="text-xl transition-transform duration-200 group-hover:rotate-90">➕</span>
 					<span>Create Portfolio</span>
 				</a>
 			</div>
 
 			{#if portfolioList.length === 0}
-				<div class="empty-state-card">
-					<div class="empty-icon">📂</div>
-					<h3>No Portfolios Yet</h3>
-					<p>Create your first portfolio to start managing your investments</p>
-					<a href="/simulated/create-portfolio" class="empty-action-btn">
+				<div class="flex flex-col items-center justify-center py-16 px-4 text-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-600/50 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+					<div class="text-6xl mb-4 opacity-50 animate-pulse">📂</div>
+					<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Portfolios Yet</h3>
+					<p class="text-gray-600 dark:text-gray-300 mb-6 max-w-md">Create your first portfolio to start managing your investments in simulation mode</p>
+					<a 
+						href="/simulated/create-portfolio" 
+						class="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+					>
 						Create Portfolio
 					</a>
 				</div>
 			{:else}
-				<div class="portfolio-grid">
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{#each portfolioList as portfolio}
-						<a href="/simulated/portfolio/{encodeURIComponent(portfolio.name)}" class="portfolio-card">
-							<div class="portfolio-header">
-								<h3 class="portfolio-name">{portfolio.name}</h3>
-								<span class="portfolio-date">{formatDate(portfolio.createdAt)}</span>
-							</div>
-							
-							{#if portfolio.description}
-								<p class="portfolio-description">{portfolio.description}</p>
-							{/if}
-							
-							<div class="portfolio-stats">
-								<div class="stat">
-									<span class="stat-label">Current Value</span>
-									<span class="stat-value">{formatCurrency(portfolio.currentValue)}</span>
-								</div>
-								<div class="stat">
-									<span class="stat-label">Initial Deposit</span>
-									<span class="stat-value">{formatCurrency(portfolio.initialDeposit)}</span>
-								</div>
-							</div>
-							
-							<div class="portfolio-pl">
-								<span class="pl-label">Profit/Loss</span>
-								<span class="pl-value" class:profit={portfolio.profitLoss.absolute >= 0} class:loss={portfolio.profitLoss.absolute < 0}>
-									{portfolio.profitLoss.absolute >= 0 ? '+' : ''}{formatCurrency(portfolio.profitLoss.absolute)}
-									<span class="pl-percent">({portfolio.profitLoss.percentage.toFixed(2)}%)</span>
+						<a 
+							href="/simulated/portfolio/{encodeURIComponent(portfolio.name)}" 
+							class="group flex flex-col p-6 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-blue-500 dark:hover:border-blue-400 transition-all duration-200 transform hover:-translate-y-2 hover:shadow-2xl"
+						>
+							<div class="flex justify-between items-start mb-3 gap-3">
+								<h3 class="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors break-words flex-1">
+									{portfolio.name}
+								</h3>
+								<span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap flex-shrink-0">
+									{formatDate(portfolio.createdAt)}
 								</span>
 							</div>
 							
-							<div class="portfolio-holdings">
-								<span class="holdings-count">
+							{#if portfolio.description}
+								<p class="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2 leading-relaxed">
+									{portfolio.description}
+								</p>
+							{/if}
+							
+							<div class="grid grid-cols-2 gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-600">
+								<div class="flex flex-col gap-1">
+									<span class="text-xs font-medium text-gray-500 dark:text-gray-400">Current Value</span>
+									<span class="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(portfolio.currentValue)}</span>
+								</div>
+								<div class="flex flex-col gap-1">
+									<span class="text-xs font-medium text-gray-500 dark:text-gray-400">Initial Deposit</span>
+									<span class="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(portfolio.initialDeposit)}</span>
+								</div>
+							</div>
+							
+							<div class="flex justify-between items-center p-3 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-600/50 dark:to-gray-500/50 rounded-lg mb-3">
+								<span class="text-sm font-medium text-gray-700 dark:text-gray-300">Profit/Loss</span>
+								<span class="flex items-center gap-2 text-lg font-bold {portfolio.profitLoss.absolute >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
+									{portfolio.profitLoss.absolute >= 0 ? '+' : ''}{formatCurrency(portfolio.profitLoss.absolute)}
+									<span class="text-sm opacity-80">({portfolio.profitLoss.percentage.toFixed(2)}%)</span>
+								</span>
+							</div>
+							
+							<div class="flex justify-end">
+								<span class="inline-flex items-center px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 rounded-full">
 									{Object.keys(portfolio.holdings).length} {Object.keys(portfolio.holdings).length === 1 ? 'Token' : 'Tokens'}
 								</span>
 							</div>
@@ -159,304 +181,4 @@
 	</div>
 </div>
 
-<style>
-	.simulation-dashboard {
-		padding: 2rem;
-		max-width: 1400px;
-		margin: 0 auto;
-	}
 
-	.container {
-		display: flex;
-		flex-direction: column;
-		gap: 2rem;
-	}
-
-	/* Summary Card */
-	.summary-card {
-		background: white;
-		border-radius: 1rem;
-		padding: 1.5rem;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	}
-
-	h2 {
-		margin: 0 0 1rem 0;
-		font-size: 1.25rem;
-		font-weight: 600;
-	}
-
-	.summary-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-		gap: 1rem;
-	}
-
-	.summary-item {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		padding: 1rem;
-		background: #f8f9fa;
-		border-radius: 0.5rem;
-	}
-
-	.label {
-		font-size: 0.875rem;
-		color: #666;
-		font-weight: 500;
-	}
-
-	.value {
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: #333;
-	}
-
-	.profit {
-		color: #10b981;
-	}
-
-	.loss {
-		color: #ef4444;
-	}
-
-	/* Portfolios Section */
-	.portfolios-section {
-		background: white;
-		border-radius: 1rem;
-		padding: 1.5rem;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	}
-
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 1.5rem;
-	}
-
-	.create-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1.5rem;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		color: white;
-		border-radius: 0.5rem;
-		text-decoration: none;
-		font-weight: 600;
-		transition: all 0.2s;
-		box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
-	}
-
-	.create-btn:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-	}
-
-	.create-btn .icon {
-		font-size: 1.25rem;
-	}
-
-	/* Empty State */
-	.empty-state-card {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 4rem 2rem;
-		text-align: center;
-		background: #f8f9fa;
-		border-radius: 0.75rem;
-		border: 2px dashed #e0e0e0;
-	}
-
-	.empty-icon {
-		font-size: 4rem;
-		margin-bottom: 1rem;
-		opacity: 0.5;
-	}
-
-	.empty-state-card h3 {
-		margin: 0 0 0.5rem 0;
-		font-size: 1.5rem;
-		color: #333;
-	}
-
-	.empty-state-card p {
-		margin: 0 0 1.5rem 0;
-		color: #666;
-		font-size: 1rem;
-	}
-
-	.empty-action-btn {
-		padding: 0.75rem 2rem;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		color: white;
-		border-radius: 0.5rem;
-		text-decoration: none;
-		font-weight: 600;
-		transition: all 0.2s;
-	}
-
-	.empty-action-btn:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-	}
-
-	/* Portfolio Grid */
-	.portfolio-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-		gap: 1.5rem;
-	}
-
-	/* Portfolio Card */
-	.portfolio-card {
-		display: flex;
-		flex-direction: column;
-		padding: 1.5rem;
-		background: white;
-		border: 2px solid #e0e0e0;
-		border-radius: 0.75rem;
-		text-decoration: none;
-		color: inherit;
-		transition: all 0.2s;
-		cursor: pointer;
-	}
-
-	.portfolio-card:hover {
-		border-color: #667eea;
-		transform: translateY(-4px);
-		box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
-	}
-
-	.portfolio-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		margin-bottom: 0.75rem;
-		gap: 1rem;
-	}
-
-	.portfolio-name {
-		margin: 0;
-		font-size: 1.25rem;
-		font-weight: 700;
-		color: #333;
-		word-break: break-word;
-	}
-
-	.portfolio-date {
-		font-size: 0.75rem;
-		color: #999;
-		white-space: nowrap;
-		flex-shrink: 0;
-	}
-
-	.portfolio-description {
-		margin: 0 0 1rem 0;
-		font-size: 0.875rem;
-		color: #666;
-		line-height: 1.5;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-
-	.portfolio-stats {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1rem;
-		margin-bottom: 1rem;
-		padding-bottom: 1rem;
-		border-bottom: 1px solid #e0e0e0;
-	}
-
-	.stat {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-
-	.stat-label {
-		font-size: 0.75rem;
-		color: #666;
-		font-weight: 500;
-	}
-
-	.stat-value {
-		font-size: 1rem;
-		font-weight: 700;
-		color: #333;
-	}
-
-	.portfolio-pl {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 0.75rem;
-		background: #f8f9fa;
-		border-radius: 0.5rem;
-		margin-bottom: 0.75rem;
-	}
-
-	.pl-label {
-		font-size: 0.875rem;
-		color: #666;
-		font-weight: 500;
-	}
-
-	.pl-value {
-		font-size: 1rem;
-		font-weight: 700;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
-	.pl-percent {
-		font-size: 0.875rem;
-		opacity: 0.8;
-	}
-
-	.portfolio-holdings {
-		display: flex;
-		justify-content: flex-end;
-	}
-
-	.holdings-count {
-		font-size: 0.875rem;
-		color: #666;
-		padding: 0.25rem 0.75rem;
-		background: #f0f0f0;
-		border-radius: 1rem;
-	}
-
-	/* Responsive */
-	@media (max-width: 768px) {
-		.simulation-dashboard {
-			padding: 1rem;
-		}
-
-		.summary-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.portfolio-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.section-header {
-			flex-direction: column;
-			align-items: stretch;
-			gap: 1rem;
-		}
-
-		.create-btn {
-			justify-content: center;
-		}
-	}
-</style>

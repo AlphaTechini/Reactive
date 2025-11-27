@@ -210,13 +210,23 @@
 
 - [x] 13. Add transaction history tracking
 
+
+
   - Extend simulation store with transactions array
   - Record all portfolio operations (create, buy, sell, deposit, withdraw)
   - Display transaction history on portfolio page
   - Show timestamp, type, and details for each transaction
   - _Requirements: Transaction tracking_
 
-- [ ] 14. Polish UI and styling
+- [x] 14. Polish UI and styling
+
+
+
+
+
+
+
+
   - Apply consistent Tailwind styling across all pages
   - Match design patterns from main app
   - Ensure responsive layout for all screen sizes
