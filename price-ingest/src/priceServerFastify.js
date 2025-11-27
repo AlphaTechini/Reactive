@@ -12,8 +12,8 @@ try {
   initHelia = heliaModule.initHelia;
   updatePrices = heliaModule.updatePrices;
   updateUserWallets = heliaModule.updateUserWallets;
-  fetchJ../lib/heliaStorage.jsON;
-  storeJSON = heliaModule.storeJ../lib/centralStorage.js
+  fetchJSON = heliaModule.fetchJSON;
+  storeJSON = heliaModule.storeJSON;
 } catch (e) {
   console.warn('⚠️ Helia IPFS module not available - running without IPFS support');
 }
