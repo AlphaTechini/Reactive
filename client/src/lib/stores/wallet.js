@@ -317,7 +317,7 @@ class WalletService {
       };
       
       // Call backend API to store user data
-      const response = await fetch(`http://localhost:3001/api/users/${this.address}`, {
+      const response = await fetch(`${import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001'}/api/users/${this.address}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(walletData)

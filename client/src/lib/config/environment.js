@@ -5,10 +5,12 @@
  */
 
 // API Endpoints
+const apiBaseUrl = import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001';
+
 export const API_CONFIG = {
-  priceIngestUrl: import.meta.env.VITE_PRICE_INGEST_API_URL || 'http://localhost:3001/api/prices',
+  priceIngestUrl: import.meta.env.VITE_PRICE_INGEST_API_URL || `${apiBaseUrl}/api/prices`,
   coingeckoUrl: import.meta.env.VITE_COINGECKO_API_URL || 'https://api.coingecko.com/api/v3',
-  uniswapUrl: import.meta.env.VITE_UNISWAP_API_URL || 'http://localhost:3001/api/uniswap-prices'
+  uniswapUrl: import.meta.env.VITE_UNISWAP_API_URL || `${apiBaseUrl}/api/uniswap-prices`
 };
 
 // Smart Contract Addresses

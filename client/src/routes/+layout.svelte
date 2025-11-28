@@ -11,6 +11,7 @@
 	import Header from '$lib/components/Header.svelte';
 	import { Toaster } from 'svelte-hot-french-toast';
 	import { notify } from '$lib/notify.js';
+	import { serverWarmup } from '$lib/services/serverWarmup.js';
 	
 	let sidebarOpen = $state(false); let { children } = $props();
 	let lastMode = $appMode;
@@ -19,6 +20,9 @@
 	
 	onMount(async () => {
 		console.log('🚀 Initializing app services (parallel)...');
+
+		// Start server warmup immediately to prevent cold starts
+		serverWarmup.warmupInBackground();
 
 		// Start wallet and price initialization in parallel to avoid blocking UI
 		const walletPromise = walletService.init();
@@ -102,6 +106,7 @@
 						</div>
 						<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Initializing Services</h2>
 						<p class="text-gray-600 dark:text-gray-400 mb-4">Loading wallet and price services...</p>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mb-2">🔥 Warming up remote server...</p>
 						{#if $globalRefreshingStore}
 							<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-2">
 								<div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 60%"></div>

@@ -43,7 +43,7 @@ const ERC20_ABI = [
 
 // Will be loaded from deployments.json or env variable
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "0x0000000000000000000000000000000000000000";
-const WEBHOOK_API_URL = import.meta.env.VITE_WEBHOOK_URL || "http://localhost:3001/api";
+const WEBHOOK_API_URL = import.meta.env.VITE_WEBHOOK_URL || `${import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001'}/api`;
 
 let SUPPORTED_TOKENS = {};
 

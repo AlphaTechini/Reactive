@@ -58,9 +58,12 @@ class EnhancedPriceService {
       category: token.category
     }));
     
+    // API configuration
+    this.apiBaseUrl = import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001';
+    
     // Webhook configuration for price alerts
     this.alertThresholds = new Map(); // user-defined price change thresholds
-    this.webhookUrl = import.meta.env.VITE_WEBHOOK_URL || 'http://localhost:3001/api/price-alerts';
+    this.webhookUrl = import.meta.env.VITE_WEBHOOK_URL || `${this.apiBaseUrl}/api/price-alerts`;
 
     // Local cache (browser) so every visitor instantly sees last known prices without waiting
     this.LOCAL_CACHE_KEY = 'reactivePriceCacheV1';
@@ -164,7 +167,7 @@ class EnhancedPriceService {
       // Get cached data from backend endpoint
       if (!batchPrices) {
         try {
-          const response = await fetch('http://localhost:3001/api/prices', {
+          const response = await fetch(`${this.apiBaseUrl}/api/prices`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -299,7 +302,7 @@ class EnhancedPriceService {
     // Check for backend refreshes every minute
     setInterval(async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/health', {
+        const response = await fetch(`${this.apiBaseUrl}/api/health`, {
           method: 'GET',
           headers: { 'Accept': 'application/json' }
         });
@@ -339,7 +342,7 @@ class EnhancedPriceService {
       // Get cached data from backend endpoint (backend already fetched from APIs)
       if (!batchPrices) {
         try {
-          const response = await fetch('http://localhost:3001/api/prices', {
+          const response = await fetch(`${this.apiBaseUrl}/api/prices`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -702,7 +705,7 @@ class EnhancedPriceService {
     
     // Fetch from backend
     try {
-      const response = await fetch(`http://localhost:3001/api/users/${walletAddress}`);
+      const response = await fetch(`${this.apiBaseUrl}/api/users/${walletAddress}`);
       if (response.ok) {
         const userData = await response.json();
         this.userData.set(walletAddress, userData);
@@ -715,7 +718,7 @@ class EnhancedPriceService {
     return null;
   }  async updateUserData(walletAddress, userData) {
     try {
-      const response = await fetch(`http://localhost:3001/api/users/${walletAddress}`, {
+      const response = await fetch(`${this.apiBaseUrl}/api/users/${walletAddress}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)

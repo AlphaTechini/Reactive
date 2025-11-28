@@ -10,7 +10,7 @@ import { globalStorage } from '../stores/globalStorage.js';
 class FastPricePoller {
   constructor() {
     this.POLL_INTERVAL_MS = 30000; // Check every 30 seconds (reduced from 2s)
-    this.BACKEND_URL = 'http://localhost:3001';
+    this.BACKEND_URL = import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001';
     this.isPolling = false;
     this.lastModified = null;
     this.pollInterval = null;

@@ -6,7 +6,7 @@ export const currentPortfolio = writable(null);
 export const portfoliosLoading = writable(false);
 export const portfoliosError = writable(null);
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = `${import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001'}/api`;
 
 export async function fetchPortfolios() {
   const address = get(walletAddress);

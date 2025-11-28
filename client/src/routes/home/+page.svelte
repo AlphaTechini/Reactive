@@ -1,14 +1,19 @@
 <script>
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { serverWarmup } from '$lib/services/serverWarmup.js';
 	
 	let isVisible = false;
 	
 	onMount(() => {
 		isVisible = true;
+		// Warm up server on homepage load
+		serverWarmup.warmupInBackground();
 	});
 	
-	function goToSimulation() {
+	async function goToSimulation() {
+		// Warm up server before navigation for faster experience
+		serverWarmup.warmupInBackground();
 		goto('/simulated');
 	}
 	

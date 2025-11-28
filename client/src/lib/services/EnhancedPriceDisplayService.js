@@ -38,8 +38,9 @@ class EnhancedPriceDisplayService {
     this.isInitialized = false;
     
     // Price source configurations
-    this.priceIngestUrl = 'http://localhost:3001/api/prices';
-    this.uniswapPriceUrl = 'http://localhost:3001/api/uniswap-prices'; // Assuming endpoint exists
+    const apiBaseUrl = import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001';
+    this.priceIngestUrl = `${apiBaseUrl}/api/prices`;
+    this.uniswapPriceUrl = `${apiBaseUrl}/api/uniswap-prices`; // Assuming endpoint exists
     
     // Supported tokens - will be loaded from config
     this.supportedTokens = [];
