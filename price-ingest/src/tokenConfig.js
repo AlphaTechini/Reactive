@@ -5,8 +5,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Path to tokens.txt relative to this file
-const TOKENS_FILE = path.resolve(__dirname, '../../tokens.txt');
+// Path to tokens.txt - try multiple locations
+const possiblePaths = [
+  path.resolve(__dirname, '../tokens.txt'),      // price-ingest/tokens.txt (deployment)
+  path.resolve(__dirname, '../../tokens.txt'),   // Root tokens.txt (local dev)
+  path.resolve(process.cwd(), 'tokens.txt'),     // Current working directory
+];
+
+const TOKENS_FILE = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
 
 /**
  * Parse tokens.txt to extract token symbol->address mapping
