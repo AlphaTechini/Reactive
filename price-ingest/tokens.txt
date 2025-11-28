@@ -1,0 +1,122 @@
+=== TOKEN LIST & BATCH PRICE FETCH (FOR IDE-AI) ===
+
+Purpose: Canonical, closed token universe for backend price aggregation & frontend display. Do NOT add or remove tokens without architecture review.
+
+FETCH RULES
+1. Single batched HTTP request per refresh cycle (no per-token calls).
+2. Endpoint (FreeCryptoAPI preferred):
+  GET https://api.freecryptoapi.com/v1/getDataCurrency?symbol=WBTC+ETH+USDC+DAI+UNI+...&local=USD
+   (All symbols space or plus-separated in one symbol param; use '+' in actual URL encoding.)
+3. Cache server-side 30–60s. Reject client attempts to pass custom symbols.
+4. Return partial data even if some symbols fail. Never throw for a single-symbol failure.
+
+FIXED TOKEN LIST (Ethereum Mainnet unless noted) - format: SYMBOL : ADDRESS
+WBTC  : 0x2260fac5e5542a773aa44fbcfedf7c193bc2c599
+ETH  : 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+USDC  : 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+DAI   : 0x6B175474E89094C44Da98b954EedeAC495271d0F
+
+UNI   : 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
+AAVE  : 0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9
+SNX   : 0xC011A72400E58ec99Ee497CF89E3775d4bd732F
+SUSHI : 0x6B3595068778DD592e39A122f4f5A5cF09C90fE2
+CRV   : 0xD533a949740bb3306d119CC777fa900bA034cd52
+MKR   : 0x9f8F72aA9304c8B593d555F12ef6589cC3A579A2
+COMP  : 0xc00e94Cb662C3520282E6f5717214004A7f26888
+YFI   : 0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e
+GRT   : 0xc944E90C64B2c07662A292be6244BDf05Cda44a7
+SAND  : 0x3845badAde8e6dFF049820680d1F14bD0F3903A5d
+MANA  : 0x0f5D2fB29fb7D3CFeE444a200298f468908cC39D
+LDO   : 0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32
+OP    : 0x4200000000000000000000000000000000000042
+ARB   : 0x912ce59144191c1204e64559fe8253a0e49e6548   # Arbitrum token (canonical L1 representation)
+BAL   : 0xba100000625a3754423978a60c9317c58a424e3d
+FXS   : 0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0
+IMX   : 0xf57e7e7c23978c3caec3c3548e3d615c346e79ff
+1INCH : 0x111111111117dc0aa78b770fa6a738034120c302
+RNDR  : 0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24
+
+DOGE  : 0x420693bF3bF2a5c07cc5bA2eF2E4A4f9E3e7d3F0
+SHIB  : 0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE
+PEPE  : 0x6982508145454Ce325dDbE47a25d4ec3d2311933
+FLOKI : 0xcf0c122c6b73ff809c693db761e7baebe62b6a2e
+ELON  : 0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3
+AKITA : 0x3301ee63fb29f863f2333bd4466acb46cd8323e6
+// KISHU removed per user request
+VINU  : 0xafcdd4f666c84fed1d8bd825aa762e3714f652c9
+SAITAMA : 0x2c297021ff013dfb9d45c88dbd8e24a3e61040b3
+
+INTERNAL SYMBOL NORMALIZATION
+Some frontend components referenced generic names (e.g., 'bitcoin', 'ethereum', 'chainlink', 'uniswap', 'dai'). Map those to canonical symbols below during ingestion before persistence / caching.
+
+ALIAS MAP (input / route slug -> SYMBOL):
+bitcoin -> WBTC
+ethereum -> ETH
+chainlink -> LINK
+uniswap -> UNI
+dai -> DAI
+react -> REACT   # Project native token from contract `ReactToken` (symbol REACT) if/when priced internally
+
+ERROR HANDLING
+1. For any symbol missing in provider response: priceUSD = null, add field sourceError with provider status/message.
+2. Preserve successfully returned symbols.
+3. Log raw provider payload + ISO timestamp for observability & quota tracking.
+
+SECURITY & VALIDATION
+1. This list is CLOSED. Ignore any user-supplied extra symbols.
+2. Validate address format (EIP-55 checksum or lower-case acceptable) before on-chain actions.
+3. Consider on first startup: verify each address against authoritative explorer (Etherscan) and record a hash of the list for tamper detection.
+
+SAMPLE BATCH URL (URL-encoded '+'):
+https://api.freecryptoapi.com/v1/getDataCurrency?symbol=WBTC+ETH+USDC+DAI+LINK+UNI+...&local=USD
+
+EXPECTED NORMALIZED RESPONSE SHAPE (after post-processing):
+{
+  "WBTC": { "address": "0x2260...c599", "priceUSD": 27000.12, "ts": 1690000000000 },
+  "DAI":  { "address": "0x6B17...71d0F", "priceUSD": 1.0001,   "ts": 1690000000000 },
+  "PEPE": { "address": "0x6982...1933", "priceUSD": 0.0000112, "ts": 1690000000000 },
+  "MISSING": { "address": "0x...", "priceUSD": null, "sourceError": "Not returned by provider", "ts": 1690000000000 }
+}
+
+MACHINE READABLE JSON (keep in sync with list above)
+---BEGIN TOKEN_JSON---
+{
+  "WBTC": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+  "ETH": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+  "USDC": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+  "DAI":  "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+  "UNI":  "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+  "AAVE": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9",
+  "SNX":  "0xC011A72400E58ec99Ee497CF89E3775d4bd732F",
+  "SUSHI": "0x6B3595068778DD592e39A122f4f5A5cF09C90fE2",
+  "CRV":  "0xD533a949740bb3306d119CC777fa900bA034cd52",
+  "MKR":  "0x9f8F72aA9304c8B593d555F12ef6589cC3A579A2",
+  "COMP": "0xc00e94Cb662C3520282E6f5717214004A7f26888",
+  "YFI":  "0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e",
+  "GRT":  "0xc944E90C64B2c07662A292be6244BDf05Cda44a7",
+  "SAND": "0x3845badAde8e6dFF049820680d1F14bD0F3903A5d",
+  "MANA": "0x0f5D2fB29fb7D3CFeE444a200298f468908cC39D",
+  "LDO":  "0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32",
+  "OP":   "0x4200000000000000000000000000000000000042",
+  "ARB":  "0x912ce59144191c1204e64559fe8253a0e49e6548",
+  "BAL":  "0xba100000625a3754423978a60c9317c58a424e3d",
+  "FXS":  "0x3432b6a60d23ca0dfca7761b7ab56459d9c964d0",
+  "IMX":  "0xf57e7e7c23978c3caec3c3548e3d615c346e79ff",
+  "1INCH":"0x111111111117dc0aa78b770fa6a738034120c302",
+  "RNDR": "0x6de037ef9ad2725eb40118bb1702ebb27e4aeb24",
+  "SHIB": "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE",
+  "DOGE": "0x420693bF3bF2a5c07cc5bA2eF2E4A4f9E3e7d3F0",
+  "PEPE": "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+  "FLOKI":"0xcf0c122c6b73ff809c693db761e7baebe62b6a2e",
+  "ELON": "0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3",
+  "AKITA": "0x3301ee63fb29f863f2333bd4466acb46cd8323e6",
+  "VINU": "0xafcdd4f666c84fed1d8bd825aa762e3714f652c9",
+  "SAITAMA": "0x2c297021ff013dfb9d45c88dbd8e24a3e61040b3"
+}
+---END TOKEN_JSON---
+
+REFERENCES
+FreeCryptoAPI docs: https://freecryptoapi.com/documentation
+Etherscan token pages: https://etherscan.io/token/<address>
+
+=== END OF PROMPT ===
