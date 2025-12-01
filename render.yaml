@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: reactive-portfolio
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd client && pnpm install --no-frozen-lockfile && pnpm run build
+    startCommand: cd client && pnpm run preview
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: PNPM_VERSION
+        value: 9
