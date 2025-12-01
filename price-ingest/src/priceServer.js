@@ -13,7 +13,8 @@ app.use(cors({
     'http://localhost:3000', 
     'https://reactive-14w1.vercel.app/',
     'https://reactive.cyberpunk.work',
-    'https://reactive-agzd.onrender.com'
+    'https://reactive-agzd.onrender.com',
+    'https://reactive-1.onrender.com'
   ],
   credentials: true
 }));
