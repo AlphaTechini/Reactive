@@ -61,6 +61,7 @@ class ServerWarmupService {
     
     if (this.warmupAttempts >= this.maxAttempts) {
       console.error(`❌ Server warmup failed after ${this.maxAttempts} attempts`);
+      // Don't fail completely - the app should still work with cached/mock data
       return false;
     }
 

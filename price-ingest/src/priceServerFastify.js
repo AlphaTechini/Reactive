@@ -64,7 +64,13 @@ if (envLoadResult.loaded) {
 
 // Register CORS
 await fastify.register(fastifyCors, {
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:3000',
+    'https://reactive-14w1.vercel.app/',
+    'https://reactive.cyberpunk.work',
+    'https://reactive-agzd.onrender.com'
+  ],
   credentials: true
 });
 
@@ -493,6 +499,16 @@ fastify.get('/api/health', async (request, reply) => {
       lastPricesCID,
       lastUsersCID
     }
+  };
+});
+
+// Ping endpoint to prevent cold starts
+fastify.get('/api/ping', async (request, reply) => {
+  return {
+    status: 'pong',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    server: 'Fastify'
   };
 });
 
@@ -1101,6 +1117,7 @@ const start = async () => {
     console.log('📊 Endpoints:');
     console.log(`   GET  /api/prices  - Unified batch price data`);
     console.log(`   GET  /api/health  - Server health check`);
+    console.log(`   GET  /api/ping    - Ping endpoint (cold start prevention)`);
     console.log(`   POST /api/refresh - Manual price refresh`);
     console.log(`   POST /api/users/:walletAddress/portfolios - Create portfolio`);
     console.log(`   GET  /api/users/:walletAddress/portfolios - List portfolios`);

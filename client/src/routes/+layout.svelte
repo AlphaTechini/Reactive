@@ -12,6 +12,7 @@
 	import { Toaster } from 'svelte-hot-french-toast';
 	import { notify } from '$lib/notify.js';
 	import { serverWarmup } from '$lib/services/serverWarmup.js';
+	import { keepAliveService } from '$lib/services/keepAlive.js';
 	
 	let sidebarOpen = $state(false); let { children } = $props();
 	let lastMode = $appMode;
@@ -23,6 +24,9 @@
 
 		// Start server warmup immediately to prevent cold starts
 		serverWarmup.warmupInBackground();
+		
+		// Start keep-alive service to prevent backend cold starts
+		keepAliveService.start();
 
 		// Start wallet and price initialization in parallel to avoid blocking UI
 		const walletPromise = walletService.init();

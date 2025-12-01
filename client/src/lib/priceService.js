@@ -58,8 +58,9 @@ class EnhancedPriceService {
       category: token.category
     }));
     
-    // API configuration
+    // API configuration with fallback
     this.apiBaseUrl = import.meta.env.VITE_PRICE_API_URL || 'http://localhost:3001';
+    this.fallbackApiUrl = import.meta.env.VITE_LOCAL_PRICE_API_URL || 'http://localhost:3001';
     
     // Webhook configuration for price alerts
     this.alertThresholds = new Map(); // user-defined price change thresholds
@@ -164,42 +165,50 @@ class EnhancedPriceService {
         }
       }
       
-      // Get cached data from backend endpoint
+      // Get cached data from backend endpoint (try primary, then fallback)
       if (!batchPrices) {
-        try {
-          const response = await fetch(`${this.apiBaseUrl}/api/prices`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            signal: AbortSignal.timeout(10000) // 10 second timeout
-          });
+        const endpoints = [this.apiBaseUrl, this.fallbackApiUrl];
+        
+        for (const baseUrl of endpoints) {
+          if (batchPrices) break; // Already got data
           
-          if (response.ok) {
-            batchPrices = await response.json();
-            console.log('✅ Loaded prices from backend');
+          try {
+            console.log(`📡 Trying backend: ${baseUrl}`);
+            const response = await fetch(`${baseUrl}/api/prices`, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              },
+              signal: AbortSignal.timeout(10000) // 10 second timeout
+            });
             
-            // Track backend cache expiration from metadata
-            if (batchPrices._metadata) {
-              console.log(`📊 Backend data: ${batchPrices._metadata.tokenCount} tokens, age: ${Math.round(batchPrices._metadata.cacheAge / 1000)}s`);
+            if (response.ok) {
+              batchPrices = await response.json();
+              console.log(`✅ Loaded prices from backend: ${baseUrl}`);
               
-              // Calculate when backend cache will expire
-              if (batchPrices._metadata.nextFetchIn) {
-                this.backendCacheExpiresAt = Date.now() + batchPrices._metadata.nextFetchIn;
-                const expiresInMinutes = Math.round(batchPrices._metadata.nextFetchIn / 60000);
-                console.log(`⏰ Backend cache fresh for ${expiresInMinutes} more minutes`);
+              // Track backend cache expiration from metadata
+              if (batchPrices._metadata) {
+                console.log(`📊 Backend data: ${batchPrices._metadata.tokenCount} tokens, age: ${Math.round(batchPrices._metadata.cacheAge / 1000)}s`);
+                
+                // Calculate when backend cache will expire
+                if (batchPrices._metadata.nextFetchIn) {
+                  this.backendCacheExpiresAt = Date.now() + batchPrices._metadata.nextFetchIn;
+                  const expiresInMinutes = Math.round(batchPrices._metadata.nextFetchIn / 60000);
+                  console.log(`⏰ Backend cache fresh for ${expiresInMinutes} more minutes`);
+                }
               }
+              break; // Success, exit loop
+            } else {
+              const errorMsg = `Backend endpoint error (${baseUrl}): ${response.status} ${response.statusText}`;
+              console.error('❌', errorMsg);
+              fetchErrors.push({ source: 'backend', error: errorMsg, timestamp: Date.now() });
             }
-          } else {
-            const errorMsg = `Backend endpoint error: ${response.status} ${response.statusText}`;
+          } catch (e) {
+            const errorMsg = `Failed to load from backend (${baseUrl}): ${e.message}`;
             console.error('❌', errorMsg);
             fetchErrors.push({ source: 'backend', error: errorMsg, timestamp: Date.now() });
           }
-        } catch (e) {
-          const errorMsg = `Failed to load from backend: ${e.message}`;
-          console.error('❌', errorMsg);
-          fetchErrors.push({ source: 'backend', error: errorMsg, timestamp: Date.now() });
         }
       }
       
@@ -290,8 +299,14 @@ class EnhancedPriceService {
       fetchErrors.push({ source: 'backend', error: errorMsg, timestamp: Date.now() });
       this.lastFetchErrors = fetchErrors;
       
-      // Re-throw to allow caller to handle
-      throw new Error(errorMsg);
+      // Don't re-throw in simulation mode - use fallback mock prices instead
+      if (mode === 'simulation') {
+        console.log('🧪 Backend failed in simulation mode, using fallback mock prices...');
+        // This will be handled by the fallback logic below
+      } else {
+        // Re-throw to allow caller to handle in live mode
+        throw new Error(errorMsg);
+      }
     } finally {
       globalRefreshingStore.set(false);
     }
