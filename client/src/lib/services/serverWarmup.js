@@ -24,8 +24,8 @@ class ServerWarmupService {
     try {
       const startTime = Date.now();
       
-      // Try health endpoint first (lightweight)
-      const response = await fetch(`${this.apiBaseUrl}/api/health`, {
+      // Try ping endpoint first (lightweight)
+      const response = await fetch(`${this.apiBaseUrl}/api/ping`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -88,7 +88,7 @@ class ServerWarmupService {
    */
   async isServerResponsive() {
     try {
-      const response = await fetch(`${this.apiBaseUrl}/api/health`, {
+      const response = await fetch(`${this.apiBaseUrl}/api/ping`, {
         method: 'GET',
         signal: AbortSignal.timeout(5000)
       });

@@ -8,7 +8,13 @@ const PORT = process.env.PRICE_SERVER_PORT || 3001;
 
 // Enable CORS for frontend
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://reactive-14w1.vercel.app/', 'reactive.cyberpunk.work'],
+  origin: [
+    'http://localhost:5173', 
+    'http://localhost:3000', 
+    'https://reactive-14w1.vercel.app/',
+    'https://reactive.cyberpunk.work',
+    'https://reactive-agzd.onrender.com'
+  ],
   credentials: true
 }));
 
@@ -102,7 +108,17 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     cacheAge: Date.now() - lastFetchTime,
     cachedTokens: Object.keys(priceCache).length,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    lastFetchTime: new Date(lastFetchTime).toISOString()
+  });
+});
+
+// Ping endpoint to prevent cold starts
+app.get('/api/ping', (req, res) => {
+  res.json({
+    status: 'pong',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
   });
 });
 
