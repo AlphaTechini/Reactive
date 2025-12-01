@@ -40,31 +40,25 @@
 			buyPercent > 0 && buyPercent <= 50 &&
 			stopLossPercent > 0 && stopLossPercent <= 50;
 
-		// Check if we have at least one token with allocation
-		const hasTokenAllocations = selectedTokens.length > 0;
+		// If there are configured tokens, validate their per-token settings
+		if (selectedTokens.length > 0) {
+			// Check if all token-specific settings are valid
+			const hasValidTokenSettings = selectedTokens.every(symbol => {
+				const settings = tokenSettings[symbol];
+				if (!settings) return false;
+				
+				return (
+					settings.sellPercent > 0 && settings.sellPercent <= 100 &&
+					settings.buyPercent > 0 && settings.buyPercent <= 50 &&
+					settings.stopLossPercent > 0 && settings.stopLossPercent <= 50
+				);
+			});
 
-		// Check if all token allocations are valid (> 0 and <= 100)
-		const hasValidAllocations = selectedTokens.every(symbol => {
-			const allocation = allocations[symbol];
-			return allocation > 0 && allocation <= 100;
-		});
+			return hasValidTradingSettings && hasValidTokenSettings;
+		}
 
-		// Check if all token-specific settings are valid
-		const hasValidTokenSettings = selectedTokens.every(symbol => {
-			const settings = tokenSettings[symbol];
-			if (!settings) return false;
-			
-			return (
-				settings.sellPercent > 0 && settings.sellPercent <= 100 &&
-				settings.buyPercent > 0 && settings.buyPercent <= 50 &&
-				settings.stopLossPercent > 0 && settings.stopLossPercent <= 50
-			);
-		});
-
-		// Check if total percentage equals 100%
-		const hasValidTotal = isValid;
-
-		return hasValidTradingSettings && hasTokenAllocations && hasValidAllocations && hasValidTokenSettings && hasValidTotal;
+		// If no tokens are configured, just validate trading settings
+		return hasValidTradingSettings;
 	})();
 
 	// Only show tokens that are already configured in the portfolio
@@ -286,14 +280,10 @@
 	function saveSettings() {
 		if (!isFormComplete) {
 			// Provide specific error messages based on what's missing
-			if (!isValid) {
-				error = 'Total allocation must equal 100%';
-			} else if (selectedTokens.length === 0) {
-				error = 'Please configure at least one token allocation';
-			} else if (sellPercent <= 0 || buyPercent <= 0 || stopLossPercent <= 0) {
+			if (sellPercent <= 0 || buyPercent <= 0 || stopLossPercent <= 0) {
 				error = 'All trading percentages must be greater than 0';
 			} else {
-				error = 'Please complete all required fields';
+				error = 'Please complete all required trading settings';
 			}
 			return;
 		}
@@ -542,25 +532,15 @@
 				<!-- Token Allocation Settings -->
 				<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6">
 					<div class="flex items-center justify-between mb-6">
-						<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Token Allocation & Per-Token Settings</h2>
-						<div class="flex items-center gap-2">
-							<span class="text-sm text-gray-600 dark:text-gray-300">
-								Total: <span class="font-bold {isValid ? 'text-green-600' : 'text-red-600'}">{totalPercentage.toFixed(2)}%</span>
-							</span>
-							{#if !isValid}
-								<span class="text-xs text-red-600 dark:text-red-400">
-									(Remaining: {remainingPercentage.toFixed(2)}%)
-								</span>
-							{/if}
-							{#if isFormComplete}
-								<div class="flex items-center gap-1 text-green-600 dark:text-green-400">
-									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-									</svg>
-									<span class="text-xs font-medium">Ready to save</span>
-								</div>
-							{/if}
-						</div>
+						<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Per-Token Trading Settings</h2>
+						{#if isFormComplete}
+							<div class="flex items-center gap-1 text-green-600 dark:text-green-400">
+								<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+								</svg>
+								<span class="text-xs font-medium">Ready to save</span>
+							</div>
+						{/if}
 					</div>
 
 					<!-- Quick Actions -->
@@ -600,22 +580,10 @@
 										</div>
 										<div class="flex items-center gap-2">
 											<label class="text-xs text-gray-600 dark:text-gray-400">Allocation:</label>
-											<input
-												type="number"
-												min="0"
-												max="100"
-												step="1"
-												value={allocations[token.symbol] || ''}
-												oninput={(e) => handlePercentageChange(token.symbol, e.target.value)}
-												placeholder="0"
-												class="w-20 px-3 py-2 text-right rounded-lg border {allocations[token.symbol] > 0 ? 'border-green-300 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-											/>
-											<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
-											{#if allocations[token.symbol] > 0}
-												<svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-													<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-												</svg>
-											{/if}
+											<span class="text-sm font-semibold text-gray-900 dark:text-white">
+												{allocations[token.symbol]?.toFixed(1) || '0.0'}%
+											</span>
+											<span class="text-xs text-gray-500 dark:text-gray-400">(Set during portfolio creation)</span>
 										</div>
 									</div>
 									
