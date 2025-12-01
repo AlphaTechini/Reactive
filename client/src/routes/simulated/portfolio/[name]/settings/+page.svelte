@@ -32,13 +32,15 @@
 	$: isValid = Math.abs(totalPercentage - 100) < 0.01;
 	$: selectedTokens = Object.keys(allocations).filter(symbol => allocations[symbol] > 0);
 
-	// Token list organized by category
-	const tokensByCategory = {
-		core: INITIAL_TOKEN_LIST.filter(t => t.category === 'core'),
-		stable: INITIAL_TOKEN_LIST.filter(t => t.category === 'stable'),
-		alt: INITIAL_TOKEN_LIST.filter(t => t.category === 'alt'),
-		meme: INITIAL_TOKEN_LIST.filter(t => t.category === 'meme')
-	};
+	// Only show tokens that are already configured in the portfolio
+	$: configuredTokens = selectedTokens.map(symbol => {
+		// Find the token in the INITIAL_TOKEN_LIST
+		return INITIAL_TOKEN_LIST.find(token => token.symbol === symbol) || {
+			symbol,
+			name: symbol, // fallback if not found in list
+			category: 'unknown'
+		};
+	});
 
 	onMount(() => {
 		if (!portfolio) {
@@ -239,19 +241,10 @@
 		setTimeout(() => success = '', 3000);
 	}
 
-	function selectAll() {
-		const newAllocations = {};
-		for (const token of INITIAL_TOKEN_LIST) {
-			newAllocations[token.symbol] = 0;
-		}
-		allocations = newAllocations;
-		success = 'All tokens selected. Use Auto Distribute to assign percentages.';
-		setTimeout(() => success = '', 3000);
-	}
-
 	function clearAll() {
 		allocations = {};
-		success = 'All selections cleared';
+		tokenSettings = {};
+		success = 'All allocations cleared';
 		setTimeout(() => success = '', 3000);
 	}
 
@@ -324,15 +317,7 @@
 		}
 	}
 
-	function getCategoryName(category) {
-		const names = {
-			core: 'Core Assets',
-			stable: 'Stablecoins',
-			alt: 'Altcoins',
-			meme: 'Memecoins'
-		};
-		return names[category] || category;
-	}
+
 </script>
 
 <svelte:head>
@@ -517,155 +502,155 @@
 					</div>
 
 					<!-- Quick Actions -->
-					<div class="flex gap-2 mb-6">
-						<button
-							onclick={autoDistribute}
-							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-						>
-							Auto Distribute
-						</button>
-						<button
-							onclick={selectAll}
-							class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
-						>
-							Select All
-						</button>
-						<button
-							onclick={clearAll}
-							class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
-						>
-							Clear All
-						</button>
-					</div>
+					{#if selectedTokens.length > 0}
+						<div class="flex gap-2 mb-6">
+							<button
+								onclick={autoDistribute}
+								class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+							>
+								Auto Distribute
+							</button>
+							<button
+								onclick={clearAll}
+								class="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
+							>
+								Clear All
+							</button>
+						</div>
+					{/if}
 
-					<!-- Token List by Category -->
-					<div class="space-y-6">
-						{#each Object.entries(tokensByCategory) as [category, tokens]}
-							{#if tokens.length > 0}
-								<div>
-									<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-										{getCategoryName(category)}
-									</h3>
-									<div class="space-y-3">
-										{#each tokens as token}
-											{@const hasAllocation = allocations[token.symbol] > 0}
-											{@const settings = tokenSettings[token.symbol]}
-											<div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 {hasAllocation ? 'border-blue-500 dark:border-blue-400' : 'border-transparent'}">
-												<!-- Token Header with Allocation -->
-												<div class="flex items-center gap-3 mb-3">
-													<div class="flex-1 min-w-0">
-														<p class="font-semibold text-gray-900 dark:text-white">
-															{token.symbol}
-														</p>
-														<p class="text-xs text-gray-500 dark:text-gray-400 truncate">
-															{token.name}
-														</p>
-													</div>
-													<div class="flex items-center gap-2">
-														<label class="text-xs text-gray-600 dark:text-gray-400">Allocation:</label>
-														<input
-															type="number"
-															min="0"
-															max="100"
-															step="1"
-															value={allocations[token.symbol] || ''}
-															oninput={(e) => handlePercentageChange(token.symbol, e.target.value)}
-															placeholder="0"
-															class="w-20 px-3 py-2 text-right rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-														/>
-														<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
-													</div>
+					<!-- Configured Tokens Only -->
+					{#if selectedTokens.length > 0}
+						<div class="space-y-3">
+							{#each configuredTokens as token}
+								{@const hasAllocation = allocations[token.symbol] > 0}
+								{@const settings = tokenSettings[token.symbol]}
+								<div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 border-blue-500 dark:border-blue-400">
+									<!-- Token Header with Allocation -->
+									<div class="flex items-center gap-3 mb-3">
+										<div class="flex-1 min-w-0">
+											<p class="font-semibold text-gray-900 dark:text-white">
+												{token.symbol}
+											</p>
+											<p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+												{token.name}
+											</p>
+										</div>
+										<div class="flex items-center gap-2">
+											<label class="text-xs text-gray-600 dark:text-gray-400">Allocation:</label>
+											<input
+												type="number"
+												min="0"
+												max="100"
+												step="1"
+												value={allocations[token.symbol] || ''}
+												oninput={(e) => handlePercentageChange(token.symbol, e.target.value)}
+												placeholder="0"
+												class="w-20 px-3 py-2 text-right rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+											/>
+											<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
+										</div>
+									</div>
+									
+									<!-- Per-Token Settings -->
+									<div class="border-t border-gray-200 dark:border-gray-600 pt-3 mt-3">
+										<div class="flex items-center justify-between mb-3">
+											<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Token-Specific Settings</h4>
+											<button
+												onclick={() => toggleTokenEnabled(token.symbol)}
+												class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors {settings?.enabled !== false ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'}"
+												title={settings?.enabled !== false ? 'Automation Enabled' : 'Automation Disabled'}
+											>
+												<span class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform {settings?.enabled !== false ? 'translate-x-5' : 'translate-x-1'}"></span>
+											</button>
+										</div>
+										
+										<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+											<!-- Sell % -->
+											<div>
+												<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+													Sell % ↑
+												</label>
+												<div class="flex items-center gap-1">
+													<input
+														type="number"
+														min="1"
+														max="100"
+														step="1"
+														value={settings?.sellPercent || sellPercent}
+														oninput={(e) => handleTokenSettingChange(token.symbol, 'sellPercent', e.target.value)}
+														class="w-full px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
+													/>
+													<span class="text-xs text-gray-500">%</span>
 												</div>
-												
-												<!-- Per-Token Settings (shown only if token has allocation) -->
-												{#if hasAllocation}
-													<div class="border-t border-gray-200 dark:border-gray-600 pt-3 mt-3">
-														<div class="flex items-center justify-between mb-3">
-															<h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Token-Specific Settings</h4>
-															<button
-																onclick={() => toggleTokenEnabled(token.symbol)}
-																class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors {settings?.enabled !== false ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'}"
-																title={settings?.enabled !== false ? 'Automation Enabled' : 'Automation Disabled'}
-															>
-																<span class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform {settings?.enabled !== false ? 'translate-x-5' : 'translate-x-1'}"></span>
-															</button>
-														</div>
-														
-														<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-															<!-- Sell % -->
-															<div>
-																<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-																	Sell % ↑
-																</label>
-																<div class="flex items-center gap-1">
-																	<input
-																		type="number"
-																		min="1"
-																		max="100"
-																		step="1"
-																		value={settings?.sellPercent || sellPercent}
-																		oninput={(e) => handleTokenSettingChange(token.symbol, 'sellPercent', e.target.value)}
-																		class="w-full px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-																	/>
-																	<span class="text-xs text-gray-500">%</span>
-																</div>
-															</div>
-															
-															<!-- Buy % -->
-															<div>
-																<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-																	Buy % ↓
-																</label>
-																<div class="flex items-center gap-1">
-																	<input
-																		type="number"
-																		min="1"
-																		max="50"
-																		step="1"
-																		value={settings?.buyPercent || buyPercent}
-																		oninput={(e) => handleTokenSettingChange(token.symbol, 'buyPercent', e.target.value)}
-																		class="w-full px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-																	/>
-																	<span class="text-xs text-gray-500">%</span>
-																</div>
-															</div>
-															
-															<!-- Stop Loss % -->
-															<div>
-																<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-																	Stop Loss % ↓
-																</label>
-																<div class="flex items-center gap-1">
-																	<input
-																		type="number"
-																		min="1"
-																		max="50"
-																		step="1"
-																		value={settings?.stopLossPercent || stopLossPercent}
-																		oninput={(e) => handleTokenSettingChange(token.symbol, 'stopLossPercent', e.target.value)}
-																		class="w-full px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
-																	/>
-																	<span class="text-xs text-gray-500">%</span>
-																</div>
-															</div>
-														</div>
-														
-														<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-															{#if settings?.enabled !== false}
-																✓ Automation active for this token
-															{:else}
-																⚠ Automation disabled for this token
-															{/if}
-														</p>
-													</div>
-												{/if}
 											</div>
-										{/each}
+											
+											<!-- Buy % -->
+											<div>
+												<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+													Buy % ↓
+												</label>
+												<div class="flex items-center gap-1">
+													<input
+														type="number"
+														min="1"
+														max="50"
+														step="1"
+														value={settings?.buyPercent || buyPercent}
+														oninput={(e) => handleTokenSettingChange(token.symbol, 'buyPercent', e.target.value)}
+														class="w-full px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+													/>
+													<span class="text-xs text-gray-500">%</span>
+												</div>
+											</div>
+											
+											<!-- Stop Loss % -->
+											<div>
+												<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+													Stop Loss % ↓
+												</label>
+												<div class="flex items-center gap-1">
+													<input
+														type="number"
+														min="1"
+														max="50"
+														step="1"
+														value={settings?.stopLossPercent || stopLossPercent}
+														oninput={(e) => handleTokenSettingChange(token.symbol, 'stopLossPercent', e.target.value)}
+														class="w-full px-2 py-1 text-sm text-right rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
+													/>
+													<span class="text-xs text-gray-500">%</span>
+												</div>
+											</div>
+										</div>
+										
+										<p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+											{#if settings?.enabled !== false}
+												✓ Automation active for this token
+											{:else}
+												⚠ Automation disabled for this token
+											{/if}
+										</p>
 									</div>
 								</div>
-							{/if}
-						{/each}
-					</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="text-center py-8">
+							<div class="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+								<svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+								</svg>
+							</div>
+							<h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No tokens configured</h3>
+							<p class="text-gray-500 dark:text-gray-400 mb-4">
+								This portfolio doesn't have any token allocations set up yet.
+							</p>
+							<p class="text-sm text-gray-400 dark:text-gray-500">
+								Token allocations are typically set during the initial portfolio setup process.
+							</p>
+						</div>
+					{/if}
 				</div>
 
 				<!-- Save Button -->
@@ -696,9 +681,9 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 						</svg>
 						<div class="text-xs text-blue-900 dark:text-blue-100">
-							<p class="font-medium mb-1">Per-Token Portfolio Settings</p>
+							<p class="font-medium mb-1">Portfolio Trading Settings</p>
 							<p class="text-blue-700 dark:text-blue-300">
-								Configure individual trading parameters for each token. Set allocation percentages (must total 100%), then customize sell%, buy%, and stop-loss% for each token. Use the toggle to enable/disable automation per token.
+								Configure trading parameters for your portfolio tokens. Adjust allocation percentages (must total 100%) and customize sell%, buy%, and stop-loss% for each token. Use the toggle to enable/disable automation per token.
 							</p>
 						</div>
 					</div>
