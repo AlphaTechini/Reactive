@@ -2,6 +2,7 @@
   "name": "reactive-portfolio-dapp",
   "version": "1.0.0",
   "type": "module",
+  "private": true,
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
