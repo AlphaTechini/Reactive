@@ -4,12 +4,16 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: cd client && NODE_OPTIONS="--max-old-space-size=460" pnpm install --no-frozen-lockfile && NODE_OPTIONS="--max-old-space-size=460" pnpm run build
-    startCommand: cd client && pnpm run preview
+    buildCommand: cd client && pnpm install --no-frozen-lockfile && pnpm run build
+    startCommand: cd client && node build/index.js
     envVars:
       - key: NODE_VERSION
         value: 22.16.0
       - key: PNPM_VERSION
         value: 9
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=460
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 10000
+      - key: ORIGIN
+        value: https://reactive-1.onrender.com

@@ -11,7 +11,6 @@ export default defineConfig({
 		devtoolsJson()
 	],
 	build: {
-		// Optimize for lower memory usage on free tier hosting
 		chunkSizeWarningLimit: 1000,
 		rollupOptions: {
 			output: {
@@ -25,14 +24,6 @@ export default defineConfig({
 						return 'vendor';
 					}
 				}
-			}
-		},
-		// Reduce memory usage during build
-		minify: 'terser',
-		terserOptions: {
-			compress: {
-				drop_console: true,
-				drop_debugger: true
 			}
 		}
 	}
