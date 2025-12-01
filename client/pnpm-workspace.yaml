@@ -1,4 +1,0 @@
-onlyBuiltDependencies:
-  - '@ipshipyard/node-datachannel'
-  - esbuild
-  - keccak

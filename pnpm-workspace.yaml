@@ -1,8 +1,0 @@
-packages:
-  - 'client'
-  - 'price-ingest'
-
-onlyBuiltDependencies:
-  - '@ipshipyard/node-datachannel'
-  - esbuild
-  - keccak
