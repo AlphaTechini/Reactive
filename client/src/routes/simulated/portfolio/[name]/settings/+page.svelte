@@ -32,6 +32,41 @@
 	$: isValid = Math.abs(totalPercentage - 100) < 0.01;
 	$: selectedTokens = Object.keys(allocations).filter(symbol => allocations[symbol] > 0);
 
+	// Dynamic validation for all inputs
+	$: isFormComplete = (() => {
+		// Check if basic trading settings have valid values
+		const hasValidTradingSettings = 
+			sellPercent > 0 && sellPercent <= 100 &&
+			buyPercent > 0 && buyPercent <= 50 &&
+			stopLossPercent > 0 && stopLossPercent <= 50;
+
+		// Check if we have at least one token with allocation
+		const hasTokenAllocations = selectedTokens.length > 0;
+
+		// Check if all token allocations are valid (> 0 and <= 100)
+		const hasValidAllocations = selectedTokens.every(symbol => {
+			const allocation = allocations[symbol];
+			return allocation > 0 && allocation <= 100;
+		});
+
+		// Check if all token-specific settings are valid
+		const hasValidTokenSettings = selectedTokens.every(symbol => {
+			const settings = tokenSettings[symbol];
+			if (!settings) return false;
+			
+			return (
+				settings.sellPercent > 0 && settings.sellPercent <= 100 &&
+				settings.buyPercent > 0 && settings.buyPercent <= 50 &&
+				settings.stopLossPercent > 0 && settings.stopLossPercent <= 50
+			);
+		});
+
+		// Check if total percentage equals 100%
+		const hasValidTotal = isValid;
+
+		return hasValidTradingSettings && hasTokenAllocations && hasValidAllocations && hasValidTokenSettings && hasValidTotal;
+	})();
+
 	// Only show tokens that are already configured in the portfolio
 	$: configuredTokens = selectedTokens.map(symbol => {
 		// Find the token in the INITIAL_TOKEN_LIST
@@ -249,13 +284,17 @@
 	}
 
 	function saveSettings() {
-		if (!isValid) {
-			error = 'Total allocation must equal 100%';
-			return;
-		}
-
-		if (selectedTokens.length === 0) {
-			error = 'Please select at least one token';
+		if (!isFormComplete) {
+			// Provide specific error messages based on what's missing
+			if (!isValid) {
+				error = 'Total allocation must equal 100%';
+			} else if (selectedTokens.length === 0) {
+				error = 'Please configure at least one token allocation';
+			} else if (sellPercent <= 0 || buyPercent <= 0 || stopLossPercent <= 0) {
+				error = 'All trading percentages must be greater than 0';
+			} else {
+				error = 'Please complete all required fields';
+			}
 			return;
 		}
 
@@ -394,9 +433,14 @@
 										max="100"
 										step="1"
 										bind:value={sellPercent}
-										class="w-20 px-3 py-2 text-right rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
+										class="w-20 px-3 py-2 text-right rounded-lg border {sellPercent > 0 && sellPercent <= 100 ? 'border-green-300 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
 									/>
 									<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
+									{#if sellPercent > 0 && sellPercent <= 100}
+										<svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+										</svg>
+									{/if}
 								</div>
 							</div>
 						</div>
@@ -425,9 +469,14 @@
 										max="50"
 										step="1"
 										bind:value={buyPercent}
-										class="w-20 px-3 py-2 text-right rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+										class="w-20 px-3 py-2 text-right rounded-lg border {buyPercent > 0 && buyPercent <= 50 ? 'border-green-300 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
 									/>
 									<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
+									{#if buyPercent > 0 && buyPercent <= 50}
+										<svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+										</svg>
+									{/if}
 								</div>
 							</div>
 						</div>
@@ -456,9 +505,14 @@
 										max="50"
 										step="1"
 										bind:value={stopLossPercent}
-										class="w-20 px-3 py-2 text-right rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
+										class="w-20 px-3 py-2 text-right rounded-lg border {stopLossPercent > 0 && stopLossPercent <= 50 ? 'border-green-300 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
 									/>
 									<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
+									{#if stopLossPercent > 0 && stopLossPercent <= 50}
+										<svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+										</svg>
+									{/if}
 								</div>
 							</div>
 						</div>
@@ -497,6 +551,14 @@
 								<span class="text-xs text-red-600 dark:text-red-400">
 									(Remaining: {remainingPercentage.toFixed(2)}%)
 								</span>
+							{/if}
+							{#if isFormComplete}
+								<div class="flex items-center gap-1 text-green-600 dark:text-green-400">
+									<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+									</svg>
+									<span class="text-xs font-medium">Ready to save</span>
+								</div>
 							{/if}
 						</div>
 					</div>
@@ -546,9 +608,14 @@
 												value={allocations[token.symbol] || ''}
 												oninput={(e) => handlePercentageChange(token.symbol, e.target.value)}
 												placeholder="0"
-												class="w-20 px-3 py-2 text-right rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+												class="w-20 px-3 py-2 text-right rounded-lg border {allocations[token.symbol] > 0 ? 'border-green-300 dark:border-green-600' : 'border-gray-300 dark:border-gray-600'} bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
 											/>
 											<span class="text-sm font-medium text-gray-600 dark:text-gray-400">%</span>
+											{#if allocations[token.symbol] > 0}
+												<svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+													<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+												</svg>
+											{/if}
 										</div>
 									</div>
 									
@@ -657,7 +724,7 @@
 				<div class="flex items-center gap-3">
 					<button
 						onclick={saveSettings}
-						disabled={isSaving || !isValid}
+						disabled={isSaving || !isFormComplete}
 						class="flex-1 px-6 py-3 rounded-lg font-semibold transition-all transform bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
 					>
 						{#if isSaving}
