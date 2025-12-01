@@ -8,7 +8,7 @@ const PORT = process.env.PRICE_SERVER_PORT || 3001;
 
 // Enable CORS for frontend
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://reactive-14w1.vercel.app/', 'reactive.cyberpunk.work'],
   credentials: true
 }));
 
