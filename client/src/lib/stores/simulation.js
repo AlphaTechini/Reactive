@@ -1590,6 +1590,12 @@ export function startPriceUpdates() {
 	
 	console.log('📊 Starting price updates for simulation portfolios...');
 	
+	// Check if globalStorage is available
+	if (!priceService || !priceService.globalStorage || !priceService.globalStorage.pricesStore) {
+		console.warn('⚠️ Price service global storage not available yet, skipping price updates');
+		return;
+	}
+	
 	// Subscribe to price service global prices store
 	priceUpdateUnsubscribe = priceService.globalStorage.pricesStore.subscribe((allPrices) => {
 		// Only update if we have prices and portfolios
