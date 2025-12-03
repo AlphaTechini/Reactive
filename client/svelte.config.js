@@ -1,12 +1,11 @@
-import adapter from '@sveltejs/adapter-node';
+import adapter from '@sveltejs/adapter-vercel';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	kit: {
 		adapter: adapter({
-			out: 'build',
-			precompress: false,
-			envPrefix: ''
+			// Output directory for Vercel
+			// Vercel will automatically detect and deploy from .vercel/output
 		})
 	}
 };
