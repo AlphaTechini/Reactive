@@ -130,4 +130,17 @@
 <style>
 	:global(html){ scroll-behavior:smooth; }
 	:global(body){ background:#0f172a; }
+	
+	/* Background images for light/dark themes */
+	:global(.min-h-screen) {
+		background-image: url('/light%20theme%20reactive.png');
+		background-size: cover;
+		background-position: center;
+		background-attachment: fixed;
+		background-repeat: no-repeat;
+	}
+	:global(.dark .min-h-screen),
+	:global(body.dark .min-h-screen) {
+		background-image: url('/dark%20theme%20reactive.png');
+	}
 </style>
