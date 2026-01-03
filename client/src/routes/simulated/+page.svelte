@@ -13,16 +13,39 @@
 	<title>Simulation Mode - Reactive Portfolio</title>
 </svelte:head>
 
-<div class="min-h-screen bg-[#f7f7f5] dark:bg-[#0b0b0b]">
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-		<!-- Hero Section -->
-		<div class="text-center mb-12">
-			<h1 class="text-5xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-				Welcome to <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F4D03F]">Simulation Mode</span>
-			</h1>
-			<p class="text-xl text-gray-600 dark:text-gray-400 mb-8">
-				Test portfolio features with instant calculations - no blockchain required
-			</p>
+<div class="min-h-screen bg-[#f7f7f5] dark:bg-[#0b0b0b] relative overflow-hidden">
+	<!-- Premium Gold Background Elements -->
+	<div class="absolute inset-0 overflow-hidden pointer-events-none">
+		<!-- Large ambient gold glows -->
+		<div class="absolute top-20 left-10 w-96 h-96 bg-[#d4af37] rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[120px] opacity-[0.04] dark:opacity-[0.05]"></div>
+		<div class="absolute bottom-20 right-10 w-96 h-96 bg-[#c9a227] rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-[120px] opacity-[0.04] dark:opacity-[0.05]"></div>
+		<!-- Decorative gold coin elements -->
+		<div class="absolute top-32 right-[15%] w-20 h-20 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.08] dark:opacity-[0.12] shadow-lg"></div>
+		<div class="absolute top-48 right-[8%] w-12 h-12 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.06] dark:opacity-[0.10]"></div>
+		<div class="absolute top-24 left-[12%] w-16 h-16 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.06] dark:opacity-[0.10]"></div>
+		<div class="absolute bottom-40 left-[18%] w-14 h-14 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.05] dark:opacity-[0.08]"></div>
+		<!-- Subtle gold pattern lines -->
+		<div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#d4af37]/8 dark:via-[#d4af37]/10 to-transparent"></div>
+	</div>
+
+	<div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+		<!-- Hero Section with Layered Readability -->
+		<div class="text-center mb-12 relative">
+			<!-- Layer 1: Localized Backdrop Blur (behind text only) -->
+			<div class="absolute inset-0 -mx-8 -my-4 backdrop-blur-[2px] rounded-3xl pointer-events-none" style="mask-image: radial-gradient(ellipse 70% 70% at 50% 35%, black 30%, transparent 70%);"></div>
+			
+			<!-- Layer 2: Gradient Contrast Mask - Light mode uses warm gray, dark mode uses black -->
+			<div class="absolute inset-0 -mx-12 -my-8 rounded-3xl pointer-events-none bg-[radial-gradient(ellipse_65%_60%_at_50%_35%,rgba(60,55,50,0.18)_0%,rgba(60,55,50,0.08)_40%,transparent_70%)] dark:bg-[radial-gradient(ellipse_65%_60%_at_50%_35%,rgba(0,0,0,0.40)_0%,rgba(0,0,0,0.20)_40%,transparent_70%)]"></div>
+			
+			<!-- Hero Content with Typography Reinforcement -->
+			<div class="relative z-10">
+				<h1 class="text-5xl font-bold mb-4">
+					<span class="text-gray-900 dark:text-gray-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" style="text-shadow: 0 1px 2px rgba(0,0,0,0.06);">Welcome to </span><span class="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)] dark:drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]" style="filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1));">Simulation Mode</span>
+				</h1>
+				<p class="text-xl text-gray-700 dark:text-gray-400 mb-8 drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)] dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]" style="text-shadow: 0 1px 1px rgba(255,255,255,0.3);">
+					Test portfolio features with instant calculations - no blockchain required
+				</p>
+			</div>
 			
 			<!-- Balance Card -->
 			<div class="max-w-2xl mx-auto bg-white dark:bg-[#111111] rounded-2xl shadow-lg p-8 mb-8 border border-gray-200 dark:border-gray-800">

@@ -33,30 +33,49 @@
 		</div>
 	</header>
 
-	<!-- Subtle Background Elements -->
+	<!-- Premium Gold Background Elements -->
 	<div class="absolute inset-0 overflow-hidden pointer-events-none">
-		<div class="absolute top-20 left-10 w-96 h-96 bg-[#d4af37] rounded-full mix-blend-screen filter blur-[120px] opacity-[0.03]"></div>
-		<div class="absolute bottom-20 right-10 w-96 h-96 bg-[#c9a227] rounded-full mix-blend-screen filter blur-[120px] opacity-[0.03]"></div>
+		<!-- Large ambient gold glows -->
+		<div class="absolute top-20 left-10 w-96 h-96 bg-[#d4af37] rounded-full mix-blend-screen filter blur-[120px] opacity-[0.05]"></div>
+		<div class="absolute bottom-20 right-10 w-96 h-96 bg-[#c9a227] rounded-full mix-blend-screen filter blur-[120px] opacity-[0.05]"></div>
+		<!-- Decorative gold coin elements -->
+		<div class="absolute top-32 right-[15%] w-20 h-20 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.12] shadow-lg"></div>
+		<div class="absolute top-48 right-[8%] w-12 h-12 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.10]"></div>
+		<div class="absolute top-24 left-[12%] w-16 h-16 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.10]"></div>
+		<div class="absolute bottom-40 left-[18%] w-14 h-14 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.08]"></div>
+		<div class="absolute bottom-32 right-[22%] w-10 h-10 rounded-full bg-gradient-to-br from-[#e8c84a] via-[#d4af37] to-[#a68523] opacity-[0.08]"></div>
+		<!-- Subtle gold pattern lines -->
+		<div class="absolute top-1/4 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#d4af37]/10 to-transparent"></div>
+		<div class="absolute top-2/3 left-0 w-full h-px bg-gradient-to-r from-transparent via-[#d4af37]/8 to-transparent"></div>
 	</div>
 	
 	<div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-		<!-- Hero Section -->
-		<div class="text-center mb-20 pt-12" class:opacity-0={!isVisible} class:translate-y-10={!isVisible} class:opacity-100={isVisible} class:translate-y-0={isVisible} style="transition: all 0.8s ease-out;">
-			<h1 class="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight">
-				<span class="text-[#f5f5f3]">Stop Losing Money.</span>
-				<br />
-				<span class="bg-gradient-to-r from-[#c9a227] via-[#d4af37] to-[#e8c84a] bg-clip-text text-transparent">Start Trading Smart.</span>
-			</h1>
+		<!-- Hero Section with Layered Readability -->
+		<div class="text-center mb-20 pt-12 relative" class:opacity-0={!isVisible} class:translate-y-10={!isVisible} class:opacity-100={isVisible} class:translate-y-0={isVisible} style="transition: all 0.8s ease-out;">
+			<!-- Layer 1: Localized Backdrop Blur (behind text only) -->
+			<div class="absolute inset-0 -mx-8 -my-4 backdrop-blur-[2px] rounded-3xl pointer-events-none" style="mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 70%);"></div>
 			
-			<p class="text-lg md:text-xl text-[#a0a09c] mb-8 max-w-3xl mx-auto leading-relaxed">
-				Automated portfolio management that protects your wealth with intelligent stop-loss, 
-				take-profit, and auto-rebalancing strategies.
-			</p>
+			<!-- Layer 2: Gradient Contrast Mask -->
+			<div class="absolute inset-0 -mx-12 -my-8 rounded-3xl pointer-events-none" style="background: radial-gradient(ellipse 65% 55% at 50% 40%, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.20) 40%, transparent 70%);"></div>
 			
-			<div class="inline-block bg-[#1a1a1a] border border-[#333] rounded-xl px-6 py-4 mb-12">
-				<p class="text-sm text-[#c8c8c4]">
-					⚠️ Trading involves risk. Our platform helps you trade responsibly with automated risk management.
+			<!-- Hero Content with Typography Reinforcement -->
+			<div class="relative z-10">
+				<h1 class="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight">
+					<span class="text-[#faf9f7] drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" style="text-shadow: 0 1px 2px rgba(0,0,0,0.25); -webkit-text-stroke: 0.5px rgba(250,249,247,0.15);">Stop Losing Money.</span>
+					<br />
+					<span class="bg-gradient-to-r from-[#c9a227] via-[#d4af37] to-[#e8c84a] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]" style="filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));">Start Trading Smart.</span>
+				</h1>
+				
+				<p class="text-lg md:text-xl text-[#c8c8c4] mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]" style="text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+					Automated portfolio management that protects your wealth with intelligent stop-loss, 
+					take-profit, and auto-rebalancing strategies.
 				</p>
+				
+				<div class="inline-block bg-[#1a1a1a]/90 border border-[#333] rounded-xl px-6 py-4 mb-12 backdrop-blur-sm">
+					<p class="text-sm text-[#d0d0cc]" style="text-shadow: 0 1px 1px rgba(0,0,0,0.1);">
+						⚠️ Trading involves risk. Our platform helps you trade responsibly with automated risk management.
+					</p>
+				</div>
 			</div>
 		</div>
 		
