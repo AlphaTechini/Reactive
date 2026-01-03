@@ -1,6 +1,5 @@
 <script>
 	import '../app.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import { onMount } from 'svelte';
 	import { walletService, walletConnected, networkCorrect } from '$lib/stores/wallet.js';
 	import { appMode } from '$lib/stores/appMode.js';
@@ -87,7 +86,7 @@
 	function toggleSidebar(){ sidebarOpen = !sidebarOpen; }
 </script>
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="/logo.png" type="image/png" />
 	<title>Reactive Portfolio Manager</title>
 	<meta name="description" content="Automated Trading Portfolio dApp on Reactive Network" />
 </svelte:head>

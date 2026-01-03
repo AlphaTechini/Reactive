@@ -66,9 +66,7 @@
         </button>
         <div class="flex items-center ml-4">
           <div class="flex items-center">
-            <div class="w-8 h-8 bg-gradient-to-r from-[#c9a227] via-[#d4af37] to-[#e8c84a] rounded-lg flex items-center justify-center shadow-sm">
-              <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>
-            </div>
+            <img src="/logo.png" alt="Reactive Portfolio" class="w-8 h-8 rounded-lg shadow-sm" />
             <div class="ml-3"><h1 class="text-lg font-semibold text-[#1a1a1a] dark:text-[#f5f5f3]">Reactive Portfolio</h1></div>
           </div>
         </div>

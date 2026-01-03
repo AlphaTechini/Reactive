@@ -25,9 +25,7 @@
 	<header class="relative z-20 px-4 sm:px-6 lg:px-8 py-6">
 		<div class="flex justify-between items-center">
 			<div class="flex items-center gap-3">
-				<div class="w-10 h-10 bg-gradient-to-r from-[#c9a227] via-[#d4af37] to-[#e8c84a] rounded-lg flex items-center justify-center shadow-lg shadow-[#d4af37]/20">
-					<svg class="w-6 h-6 text-[#0b0b0b]" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>
-				</div>
+				<img src="/logo.png" alt="Reactive Portfolio" class="w-10 h-10 rounded-lg shadow-lg shadow-[#d4af37]/20" />
 				<h1 class="text-2xl font-bold text-[#f5f5f3]">Reactive Portfolio</h1>
 			</div>
 		</div>
@@ -63,10 +61,10 @@
 				<h1 class="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight">
 					<span class="text-[#faf9f7] drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" style="text-shadow: 0 1px 2px rgba(0,0,0,0.25); -webkit-text-stroke: 0.5px rgba(250,249,247,0.15);">Stop Losing Money.</span>
 					<br />
-					<span class="bg-gradient-to-r from-[#c9a227] via-[#d4af37] to-[#e8c84a] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]" style="filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));">Start Trading Smart.</span>
+					<span class="bg-gradient-to-r from-[#8b7355] via-[#a68523] to-[#c9a227] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));">Start Trading Smart.</span>
 				</h1>
 				
-				<p class="text-lg md:text-xl text-[#c8c8c4] mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)]" style="text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+				<p class="text-lg md:text-xl text-[#1a1a1a] mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-[0_1px_2px_rgba(255,255,255,0.1)]" style="text-shadow: 0 1px 1px rgba(255,255,255,0.05);">
 					Automated portfolio management that protects your wealth with intelligent stop-loss, 
 					take-profit, and auto-rebalancing strategies.
 				</p>
