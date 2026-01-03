@@ -91,7 +91,7 @@
 	<title>Reactive Portfolio Manager</title>
 	<meta name="description" content="Automated Trading Portfolio dApp on Reactive Network" />
 </svelte:head>
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+<div class="min-h-screen bg-[#f7f7f5] dark:bg-[#0b0b0b]">
 	<Toaster position="top-right" />
 	<Header {toggleSidebar} {sidebarOpen} />
 	<div class="flex">

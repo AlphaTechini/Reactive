@@ -49,7 +49,7 @@
   $: formattedBalance = walletService.formatBalance($walletBalance);
   const go = (p) => (e) => { e.preventDefault(); goto(p); };
 </script>
-<header class="surface-blur sticky top-0 z-40 border-b border-gray-200 dark:border-gray-700 supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-gray-900/60 shadow-sm">
+<header class="surface-blur sticky top-0 z-40 border-b border-[#e0e0dc] dark:border-[#262626] supports-[backdrop-filter]:bg-[#f7f7f5]/90 dark:supports-[backdrop-filter]:bg-[#0b0b0b]/90 shadow-sm">
   <div class="px-4 sm:px-6 lg:px-8">
     <div class="flex justify-between items-center h-16 gap-4">
       <div class="flex items-center">
@@ -66,10 +66,10 @@
         </button>
         <div class="flex items-center ml-4">
           <div class="flex items-center">
-            <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div class="w-8 h-8 bg-gradient-to-r from-[#c9a227] via-[#d4af37] to-[#e8c84a] rounded-lg flex items-center justify-center shadow-sm">
               <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" /></svg>
             </div>
-            <div class="ml-3"><h1 class="text-lg font-semibold text-gray-900 dark:text-white">Reactive Portfolio</h1></div>
+            <div class="ml-3"><h1 class="text-lg font-semibold text-[#1a1a1a] dark:text-[#f5f5f3]">Reactive Portfolio</h1></div>
           </div>
         </div>
       </div>

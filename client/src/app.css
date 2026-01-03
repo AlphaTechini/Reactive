@@ -1,58 +1,598 @@
 @import 'tailwindcss';
 
-/* Plain CSS fallbacks for custom classes (no @apply to avoid Tailwind parse dependency) */
-html { font-feature-settings: 'cv02','cv03','cv04','cv11'; }
-body { font-family: system-ui, sans-serif; -webkit-font-smoothing: antialiased; background:#f8fafc; color:#1e293b; }
-@media (prefers-color-scheme: dark){ body { background:#0f172a; color:#f1f5f9; } }
-::selection { background:#3b82f6; color:#fff; }
+/* ============================================
+   REACTIVE PORTFOLIO - PREMIUM DESIGN SYSTEM
+   Metallic Gold Accent Theme
+   ============================================ */
 
-.card { background:#ffffff; border:1px solid #e2e8f0; border-radius:0.75rem; box-shadow:0 1px 2px rgba(0,0,0,0.05); transition:box-shadow .18s; }
-@media (prefers-color-scheme: dark){ .card { background:#1e293b; border-color:#334155; } }
-.card:hover { box-shadow:0 4px 12px -2px rgba(0,0,0,0.15); }
-.card-header { padding:1.25rem 1.25rem 0.5rem; display:flex; align-items:flex-start; justify-content:space-between; }
-.card-body { padding:0 1.25rem 1.25rem; }
-
-.btn { display:inline-flex; align-items:center; justify-content:center; border-radius:0.5rem; font-size:.875rem; font-weight:500; line-height:1.25rem; padding:0.5rem 0.9rem; gap:0.25rem; cursor:pointer; user-select:none; border:1px solid transparent; transition:background .15s, color .15s, border-color .15s, box-shadow .15s; }
-.btn:disabled { opacity:.6; cursor:not-allowed; }
-.btn-primary { background:#2563eb; color:#fff; }
-.btn-primary:hover { background:#1d4ed8; }
-.btn-primary:active { background:#1e40af; }
-.btn-secondary { background:#f1f5f9; color:#1e293b; }
-.btn-secondary:hover { background:#e2e8f0; }
-.btn-secondary:active { background:#cbd5e1; }
-@media (prefers-color-scheme: dark){
-	.btn-secondary { background:#334155; color:#f1f5f9; }
-	.btn-secondary:hover { background:#475569; }
-	.btn-secondary:active { background:#1e293b; }
+/* Base Typography */
+html { 
+  font-feature-settings: 'cv02','cv03','cv04','cv11'; 
 }
-.btn-danger { background:#dc2626; color:#fff; }
-.btn-danger:hover { background:#b91c1c; }
-.btn-outline { background:transparent; border-color:#94a3b8; color:#334155; }
-.btn-outline:hover { background:#f1f5f9; }
-@media (prefers-color-scheme: dark){ .btn-outline { color:#e2e8f0; border-color:#475569; } .btn-outline:hover { background:#1e293b; } }
 
-.input { width:100%; border:1px solid #94a3b8; background:#fff; color:#0f172a; border-radius:0.5rem; padding:0.5rem 0.75rem; font-size:.875rem; }
-@media (prefers-color-scheme: dark){ .input { background:#1e293b; border-color:#334155; color:#f1f5f9; } }
-.input:focus { outline:2px solid #3b82f6; outline-offset:2px; }
+body { 
+  font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-.badge { display:inline-flex; align-items:center; padding:0.125rem 0.625rem; font-size:.75rem; font-weight:500; border-radius:9999px; background:#f1f5f9; color:#334155; }
-@media (prefers-color-scheme: dark){ .badge { background:#334155; color:#e2e8f0; } }
+/* Light Mode Base */
+body { 
+  background: #f7f7f5; /* Off-white with slight warmth */
+  color: #1a1a1a; 
+}
 
-.surface-blur { backdrop-filter:blur(12px); background:rgba(255,255,255,0.75); }
-@media (prefers-color-scheme: dark){ .surface-blur { background:rgba(15,23,42,0.60); } }
+/* Dark Mode Base */
+.dark body,
+body.dark { 
+  background: #0b0b0b; /* Near-black */
+  color: #f5f5f3; /* Off-white text */
+}
 
-.nav-link { position:relative; padding:0.5rem 0.75rem; font-size:.875rem; font-weight:500; color:#475569; transition:color .15s; }
-.nav-link:hover { color:#0f172a; }
-@media (prefers-color-scheme: dark){ .nav-link { color:#94a3b8; } .nav-link:hover { color:#f1f5f9; } }
-.nav-link-active { color:#0f172a; }
-@media (prefers-color-scheme: dark){ .nav-link-active { color:#fff; } }
-.nav-link-active::after { content:''; position:absolute; left:0.5rem; right:0.5rem; bottom:-0.25rem; height:2px; background:#3b82f6; border-radius:9999px; }
+@media (prefers-color-scheme: dark) {
+  body:not(.light) { 
+    background: #0b0b0b; 
+    color: #f5f5f3; 
+  }
+}
 
-.fade-in { animation:fade-in .25s ease forwards; opacity:0; }
-.scale-in { animation:scale-in .25s ease forwards; transform:scale(.96); opacity:0; }
-@keyframes fade-in { to { opacity:1; } }
-@keyframes scale-in { to { transform:scale(1); opacity:1; } }
+::selection { 
+  background: linear-gradient(135deg, #c9a227 0%, #d4af37 100%);
+  color: #0b0b0b; 
+}
 
-.gradient-text { background:linear-gradient(90deg,#60a5fa,#a855f7); -webkit-background-clip:text; background-clip:text; color:transparent; }
-.glow { box-shadow:0 0 0 3px rgba(59,130,246,0.25); }
+/* ============================================
+   GOLD ACCENT SYSTEM
+   Premium metallic gold gradient
+   ============================================ */
 
+:root {
+  /* Gold palette - metallic with light reflection */
+  --gold-50: #fefdf8;
+  --gold-100: #fdf9e8;
+  --gold-200: #f9f0c5;
+  --gold-300: #f3e29a;
+  --gold-400: #e8c84a;
+  --gold-500: #d4af37; /* Primary gold */
+  --gold-600: #c9a227;
+  --gold-700: #a68523;
+  --gold-800: #876a22;
+  --gold-900: #6f5720;
+  
+  /* Gold gradients */
+  --gold-gradient: linear-gradient(135deg, #c9a227 0%, #d4af37 35%, #e8c84a 50%, #d4af37 65%, #c9a227 100%);
+  --gold-gradient-subtle: linear-gradient(135deg, #d4af37 0%, #e8c84a 50%, #d4af37 100%);
+  --gold-gradient-shine: linear-gradient(135deg, #a68523 0%, #c9a227 25%, #f3e29a 50%, #c9a227 75%, #a68523 100%);
+  
+  /* Neutral palette */
+  --neutral-50: #f7f7f5;
+  --neutral-100: #efefed;
+  --neutral-200: #e0e0dc;
+  --neutral-300: #c8c8c4;
+  --neutral-400: #a0a09c;
+  --neutral-500: #787874;
+  --neutral-600: #5c5c58;
+  --neutral-700: #3d3d3b;
+  --neutral-800: #1f1f1e;
+  --neutral-900: #0b0b0b;
+}
+
+/* ============================================
+   CARD COMPONENTS
+   ============================================ */
+
+.card { 
+  background: #ffffff; 
+  border: 1px solid var(--neutral-200); 
+  border-radius: 0.875rem; 
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease; 
+}
+
+.dark .card { 
+  background: #141414; 
+  border-color: #262626; 
+}
+
+.card:hover { 
+  box-shadow: 0 4px 12px -2px rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.04);
+}
+
+.dark .card:hover {
+  border-color: #333333;
+}
+
+.card-header { 
+  padding: 1.25rem 1.25rem 0.75rem; 
+  display: flex; 
+  align-items: flex-start; 
+  justify-content: space-between; 
+}
+
+.card-body { 
+  padding: 0 1.25rem 1.25rem; 
+}
+
+/* Premium card with gold accent */
+.card-premium {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gold-gradient);
+}
+
+/* ============================================
+   BUTTON COMPONENTS
+   ============================================ */
+
+.btn { 
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center; 
+  border-radius: 0.5rem; 
+  font-size: 0.875rem; 
+  font-weight: 500; 
+  line-height: 1.25rem; 
+  padding: 0.5rem 1rem; 
+  gap: 0.375rem; 
+  cursor: pointer; 
+  user-select: none; 
+  border: 1px solid transparent; 
+  transition: all 0.15s ease;
+}
+
+.btn:disabled { 
+  opacity: 0.5; 
+  cursor: not-allowed; 
+}
+
+/* Primary CTA - Gold gradient */
+.btn-primary { 
+  background: var(--gold-gradient);
+  color: #0b0b0b;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 2px 4px rgba(201, 162, 39, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) { 
+  background: var(--gold-gradient-shine);
+  box-shadow: 0 4px 8px rgba(201, 162, 39, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) { 
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(201, 162, 39, 0.2);
+}
+
+/* Secondary button */
+.btn-secondary { 
+  background: var(--neutral-100); 
+  color: var(--neutral-800);
+  border-color: var(--neutral-200);
+}
+
+.btn-secondary:hover:not(:disabled) { 
+  background: var(--neutral-200);
+  border-color: var(--neutral-300);
+}
+
+.dark .btn-secondary { 
+  background: #1f1f1f; 
+  color: var(--neutral-100);
+  border-color: #333333;
+}
+
+.dark .btn-secondary:hover:not(:disabled) { 
+  background: #2a2a2a;
+  border-color: #404040;
+}
+
+/* Danger button */
+.btn-danger { 
+  background: #dc2626; 
+  color: #fff; 
+}
+
+.btn-danger:hover:not(:disabled) { 
+  background: #b91c1c; 
+}
+
+/* Outline button */
+.btn-outline { 
+  background: transparent; 
+  border-color: var(--neutral-300); 
+  color: var(--neutral-700); 
+}
+
+.btn-outline:hover:not(:disabled) { 
+  background: var(--neutral-100);
+  border-color: var(--neutral-400);
+}
+
+.dark .btn-outline { 
+  color: var(--neutral-200); 
+  border-color: #404040; 
+}
+
+.dark .btn-outline:hover:not(:disabled) { 
+  background: #1f1f1f;
+  border-color: #505050;
+}
+
+/* Gold outline button */
+.btn-gold-outline {
+  background: transparent;
+  border: 1px solid var(--gold-500);
+  color: var(--gold-600);
+}
+
+.btn-gold-outline:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: var(--gold-400);
+}
+
+.dark .btn-gold-outline {
+  color: var(--gold-400);
+  border-color: var(--gold-600);
+}
+
+.dark .btn-gold-outline:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.15);
+  border-color: var(--gold-500);
+}
+
+/* ============================================
+   INPUT COMPONENTS
+   ============================================ */
+
+.input { 
+  width: 100%; 
+  border: 1px solid var(--neutral-300); 
+  background: #fff; 
+  color: var(--neutral-900); 
+  border-radius: 0.5rem; 
+  padding: 0.5rem 0.75rem; 
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dark .input { 
+  background: #141414; 
+  border-color: #333333; 
+  color: var(--neutral-100); 
+}
+
+.input:focus { 
+  outline: none;
+  border-color: var(--gold-500);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+.dark .input:focus {
+  border-color: var(--gold-500);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+}
+
+/* ============================================
+   BADGE COMPONENTS
+   ============================================ */
+
+.badge { 
+  display: inline-flex; 
+  align-items: center; 
+  padding: 0.125rem 0.625rem; 
+  font-size: 0.75rem; 
+  font-weight: 500; 
+  border-radius: 9999px; 
+  background: var(--neutral-100); 
+  color: var(--neutral-600); 
+}
+
+.dark .badge { 
+  background: #262626; 
+  color: var(--neutral-300); 
+}
+
+/* Gold badge for important indicators */
+.badge-gold {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(232, 200, 74, 0.15) 100%);
+  color: var(--gold-700);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.dark .badge-gold {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(232, 200, 74, 0.2) 100%);
+  color: var(--gold-400);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
+/* ============================================
+   SURFACE & BLUR EFFECTS
+   ============================================ */
+
+.surface-blur { 
+  backdrop-filter: blur(12px); 
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.85); 
+}
+
+.dark .surface-blur { 
+  background: rgba(11,11,11,0.85); 
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+
+.nav-link { 
+  position: relative; 
+  padding: 0.5rem 0.75rem; 
+  font-size: 0.875rem; 
+  font-weight: 500; 
+  color: var(--neutral-500); 
+  transition: color 0.15s ease; 
+}
+
+.nav-link:hover { 
+  color: var(--neutral-900); 
+}
+
+.dark .nav-link { 
+  color: var(--neutral-400); 
+}
+
+.dark .nav-link:hover { 
+  color: var(--neutral-100); 
+}
+
+.nav-link-active { 
+  color: var(--neutral-900); 
+}
+
+.dark .nav-link-active { 
+  color: #fff; 
+}
+
+.nav-link-active::after { 
+  content: ''; 
+  position: absolute; 
+  left: 0.5rem; 
+  right: 0.5rem; 
+  bottom: -0.25rem; 
+  height: 2px; 
+  background: var(--gold-gradient);
+  border-radius: 9999px; 
+}
+
+/* Navigation item active state (sidebar) */
+.nav-item-active {
+  background: linear-gradient(to right, rgba(212, 175, 55, 0.1), rgba(244, 208, 63, 0.1));
+  color: var(--gold-600);
+  border-left: 2px solid var(--gold-500);
+}
+
+.dark .nav-item-active {
+  background: linear-gradient(to right, rgba(212, 175, 55, 0.15), rgba(244, 208, 63, 0.15));
+  color: var(--gold-400);
+  border-left-color: var(--gold-400);
+}
+
+/* Gold dot indicator */
+.gold-dot {
+  background: linear-gradient(to right, var(--gold-500), var(--gold-400));
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+.fade-in { 
+  animation: fade-in 0.25s ease forwards; 
+  opacity: 0; 
+}
+
+.scale-in { 
+  animation: scale-in 0.25s ease forwards; 
+  transform: scale(0.96); 
+  opacity: 0; 
+}
+
+@keyframes fade-in { 
+  to { opacity: 1; } 
+}
+
+@keyframes scale-in { 
+  to { transform: scale(1); opacity: 1; } 
+}
+
+/* Gold shimmer animation */
+@keyframes gold-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.gold-shimmer {
+  background: linear-gradient(90deg, var(--gold-600) 0%, var(--gold-300) 50%, var(--gold-600) 100%);
+  background-size: 200% auto;
+  animation: gold-shimmer 3s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ============================================
+   GOLD ACCENT UTILITIES
+   ============================================ */
+
+/* Gold text gradient */
+.text-gold {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Gold border */
+.border-gold {
+  border-color: var(--gold-500);
+}
+
+/* Gold glow effect */
+.glow-gold { 
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25); 
+}
+
+/* Gold icon */
+.icon-gold {
+  color: var(--gold-500);
+}
+
+.dark .icon-gold {
+  color: var(--gold-400);
+}
+
+/* ============================================
+   PROFIT/LOSS INDICATORS (Gold for profit)
+   ============================================ */
+
+.profit-positive {
+  color: var(--gold-600);
+}
+
+.dark .profit-positive {
+  color: var(--gold-400);
+}
+
+.profit-negative {
+  color: #dc2626;
+}
+
+.dark .profit-negative {
+  color: #f87171;
+}
+
+/* Profit badge */
+.badge-profit {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(232, 200, 74, 0.15) 100%);
+  color: var(--gold-700);
+}
+
+.dark .badge-profit {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(232, 200, 74, 0.2) 100%);
+  color: var(--gold-400);
+}
+
+/* ============================================
+   PORTFOLIO & BALANCE HIGHLIGHTS
+   ============================================ */
+
+.balance-highlight {
+  background: var(--gold-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+
+.portfolio-value {
+  color: var(--gold-600);
+  font-weight: 600;
+}
+
+.dark .portfolio-value {
+  color: var(--gold-400);
+}
+
+/* ============================================
+   ACTIVE STATES (Gold accent)
+   ============================================ */
+
+.tab-active {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(232, 200, 74, 0.1) 100%);
+  border-color: var(--gold-500);
+  color: var(--gold-700);
+}
+
+.dark .tab-active {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(232, 200, 74, 0.15) 100%);
+  color: var(--gold-400);
+}
+
+/* Focus ring with gold */
+.focus-gold:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.3);
+}
+
+/* ============================================
+   AUTOMATION & IMPORTANT ICONS
+   ============================================ */
+
+.icon-automation {
+  color: var(--gold-500);
+  filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.3));
+}
+
+.dark .icon-automation {
+  color: var(--gold-400);
+  filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.4));
+}
+
+/* ============================================
+   LEGACY GRADIENT (deprecated, use gold)
+   ============================================ */
+
+.gradient-text { 
+  background: var(--gold-gradient);
+  -webkit-background-clip: text; 
+  background-clip: text; 
+  color: transparent; 
+}
+
+.glow { 
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.25); 
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--neutral-100);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neutral-300);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #404040;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neutral-400);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #505050;
+}

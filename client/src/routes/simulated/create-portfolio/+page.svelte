@@ -116,12 +116,12 @@
 	<title>Create Portfolio - Simulation Mode</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+<div class="min-h-screen bg-[#f7f7f5] dark:bg-[#0b0b0b]">
 	<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
 		<!-- Back Button -->
 		<button
 			onclick={() => goto('/simulated/dashboard')}
-			class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-6 group"
+			class="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors mb-6 group"
 			aria-label="Back to dashboard"
 		>
 			<svg class="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,15 +131,15 @@
 		</button>
 
 		<div class="mb-8">
-			<h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+			<h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
 				Create New Portfolio
 			</h1>
-			<p class="text-gray-600 dark:text-gray-300">
+			<p class="text-gray-600 dark:text-gray-400">
 				Set up your portfolio with a name and initial deposit
 			</p>
 		</div>
 
-		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 border border-gray-200 dark:border-gray-700">
+		<div class="bg-white dark:bg-[#111111] rounded-2xl shadow-lg p-6 md:p-8 border border-gray-200 dark:border-gray-800">
 			<form onsubmit={handleSubmit} class="space-y-6">
 				<!-- Portfolio Name -->
 				<div class="group">
@@ -160,9 +160,9 @@
 							type="text"
 							bind:value={portfolioName}
 							placeholder="e.g., My Crypto Portfolio"
-							class="w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+							class="w-full px-4 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent dark:bg-[#1a1a1a] dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
 							class:border-gray-300={!nameError}
-							class:dark:border-gray-600={!nameError}
+							class:dark:border-gray-700={!nameError}
 							class:border-red-500={nameError}
 							class:dark:border-red-500={nameError}
 							required
@@ -199,10 +199,10 @@
 						placeholder="Describe your investment strategy..."
 						rows="3"
 						maxlength="200"
-						class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+						class="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent dark:bg-[#1a1a1a] dark:text-gray-100 resize-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
 						disabled={isSubmitting}
 					></textarea>
-					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400 text-right">
+					<p class="mt-1 text-xs text-gray-500 dark:text-gray-500 text-right">
 						{description.length}/200 characters
 					</p>
 				</div>
@@ -230,9 +230,9 @@
 							step="0.01"
 							min="0"
 							max={availableBalance}
-							class="w-full pl-8 pr-24 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+							class="w-full pl-8 pr-24 py-3 border rounded-xl transition-all duration-200 focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent dark:bg-[#1a1a1a] dark:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
 							class:border-gray-300={!amountError}
-							class:dark:border-gray-600={!amountError}
+							class:dark:border-gray-700={!amountError}
 							class:border-red-500={amountError}
 							class:dark:border-red-500={amountError}
 							required
@@ -244,7 +244,7 @@
 							type="button"
 							onclick={() => depositAmount = availableBalance.toString()}
 							disabled={isSubmitting}
-							class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 rounded-lg transition-colors disabled:opacity-50"
+							class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-gray-900 rounded-lg transition-colors disabled:opacity-50 hover:shadow-md"
 							title="Use maximum available balance"
 						>
 							MAX
@@ -255,10 +255,10 @@
 							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
 							</svg>
-							Available: ${availableBalance.toFixed(2)}
+							Available: <span class="font-semibold bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] bg-clip-text text-transparent">${availableBalance.toFixed(2)}</span>
 						</p>
 						{#if depositAmount && !amountError}
-							<p class="text-green-600 dark:text-green-400 text-xs font-medium">
+							<p class="text-emerald-600 dark:text-emerald-400 text-xs font-medium">
 								✓ Valid amount
 							</p>
 						{/if}
@@ -291,14 +291,14 @@
 						type="button"
 						onclick={() => goto('/simulated/dashboard')}
 						disabled={isSubmitting}
-						class="sm:flex-1 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+						class="sm:flex-1 px-6 py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-[#1a1a1a] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
 					>
 						Cancel
 					</button>
 					<button
 						type="submit"
 						disabled={isSubmitting || !!nameError || !!amountError || !portfolioName || !depositAmount}
-						class="sm:flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
+						class="sm:flex-1 px-6 py-3 btn-gold font-semibold rounded-xl transition-all duration-200 transform hover:scale-[1.02] shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
 					>
 						{#if isSubmitting}
 							<span class="flex items-center justify-center gap-2">
@@ -321,30 +321,30 @@
 			</form>
 		</div>
 
-		<!-- Info Card with Animation -->
-		<div class="mt-8 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 shadow-sm transition-all duration-300 hover:shadow-lg hover:scale-[1.02]">
+		<!-- Info Card -->
+		<div class="mt-8 bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-gray-800 rounded-xl p-6 shadow-sm transition-all duration-300">
 			<div class="flex items-start gap-3">
-				<div class="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center animate-pulse">
-					<svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<div class="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] rounded-lg flex items-center justify-center">
+					<svg class="w-5 h-5 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
 				</div>
 				<div class="flex-1">
-					<h3 class="font-semibold text-blue-900 dark:text-blue-100 mb-3 flex items-center gap-2">
+					<h3 class="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
 						What happens next?
-						<span class="text-xs px-2 py-0.5 bg-blue-200 dark:bg-blue-800 rounded-full">3 steps</span>
+						<span class="text-xs px-2 py-0.5 bg-gradient-to-r from-[#D4AF37]/20 to-[#F4D03F]/20 text-[#D4AF37] rounded-full">3 steps</span>
 					</h3>
-					<ol class="space-y-3 text-sm text-blue-800 dark:text-blue-200">
+					<ol class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
 						<li class="flex items-start gap-3 group">
-							<span class="flex-shrink-0 w-6 h-6 bg-blue-200 dark:bg-blue-800 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 group-hover:scale-110 group-hover:bg-blue-300 dark:group-hover:bg-blue-700">1</span>
+							<span class="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 group-hover:scale-110">1</span>
 							<span class="flex-1 transition-all duration-200 group-hover:translate-x-1">Choose which tokens to include in your portfolio</span>
 						</li>
 						<li class="flex items-start gap-3 group">
-							<span class="flex-shrink-0 w-6 h-6 bg-blue-200 dark:bg-blue-800 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 group-hover:scale-110 group-hover:bg-blue-300 dark:group-hover:bg-blue-700">2</span>
+							<span class="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 group-hover:scale-110">2</span>
 							<span class="flex-1 transition-all duration-200 group-hover:translate-x-1">Set allocation percentages for each token</span>
 						</li>
 						<li class="flex items-start gap-3 group">
-							<span class="flex-shrink-0 w-6 h-6 bg-blue-200 dark:bg-blue-800 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 group-hover:scale-110 group-hover:bg-blue-300 dark:group-hover:bg-blue-700">3</span>
+							<span class="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-[#D4AF37] to-[#F4D03F] text-gray-900 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 group-hover:scale-110">3</span>
 							<span class="flex-1 transition-all duration-200 group-hover:translate-x-1">Review and confirm your portfolio setup</span>
 						</li>
 					</ol>
@@ -354,38 +354,38 @@
 
 		<!-- Quick Tips -->
 		<div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-			<div class="group p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
+			<div class="group p-4 bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 transition-all duration-200 hover:border-[#D4AF37]/50 hover:-translate-y-1">
 				<div class="flex items-center gap-3 mb-2">
-					<div class="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-						<svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div class="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+						<svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 						</svg>
 					</div>
-					<h4 class="font-semibold text-gray-900 dark:text-white text-sm">No Real Funds</h4>
+					<h4 class="font-semibold text-gray-900 dark:text-gray-100 text-sm">No Real Funds</h4>
 				</div>
 				<p class="text-xs text-gray-600 dark:text-gray-400">Practice with $10,000 virtual balance</p>
 			</div>
 			
-			<div class="group p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
+			<div class="group p-4 bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 transition-all duration-200 hover:border-[#D4AF37]/50 hover:-translate-y-1">
 				<div class="flex items-center gap-3 mb-2">
-					<div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-						<svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div class="w-8 h-8 bg-gradient-to-r from-[#D4AF37]/20 to-[#F4D03F]/20 rounded-lg flex items-center justify-center">
+						<svg class="w-4 h-4 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
 						</svg>
 					</div>
-					<h4 class="font-semibold text-gray-900 dark:text-white text-sm">Real Prices</h4>
+					<h4 class="font-semibold text-gray-900 dark:text-gray-100 text-sm">Real Prices</h4>
 				</div>
 				<p class="text-xs text-gray-600 dark:text-gray-400">Live market data for accurate simulation</p>
 			</div>
 			
-			<div class="group p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-lg hover:-translate-y-1">
+			<div class="group p-4 bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-gray-800 transition-all duration-200 hover:border-[#D4AF37]/50 hover:-translate-y-1">
 				<div class="flex items-center gap-3 mb-2">
-					<div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-						<svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div class="w-8 h-8 bg-gradient-to-r from-[#D4AF37]/20 to-[#F4D03F]/20 rounded-lg flex items-center justify-center">
+						<svg class="w-4 h-4 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 						</svg>
 					</div>
-					<h4 class="font-semibold text-gray-900 dark:text-white text-sm">Track Performance</h4>
+					<h4 class="font-semibold text-gray-900 dark:text-gray-100 text-sm">Track Performance</h4>
 				</div>
 				<p class="text-xs text-gray-600 dark:text-gray-400">Monitor P/L and portfolio metrics</p>
 			</div>

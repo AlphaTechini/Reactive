@@ -603,7 +603,7 @@
 </svelte:head>
 
 <RouteGuard requireWallet={true} message="Please connect your wallet to view portfolios">
-<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 py-8">
+<div class="min-h-screen bg-[#f7f7f5] dark:bg-[#0b0b0b] py-8">
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 		<Breadcrumb />
 		{#if loading}
