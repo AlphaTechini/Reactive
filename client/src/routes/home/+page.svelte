@@ -61,7 +61,7 @@
 				<h1 class="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight">
 					<span class="text-[#faf9f7] drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" style="text-shadow: 0 1px 2px rgba(0,0,0,0.25); -webkit-text-stroke: 0.5px rgba(250,249,247,0.15);">Stop Losing Money.</span>
 					<br />
-					<span class="bg-gradient-to-r from-[#8b7355] via-[#a68523] to-[#c9a227] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));">Start Trading Smart.</span>
+					<span class="bg-gradient-to-r from-[#e8c84a] via-[#f4d03f] to-[#ffd700] bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));">Start Trading Smart.</span>
 				</h1>
 				
 				<p class="text-lg md:text-xl text-[#1a1a1a] mb-8 max-w-3xl mx-auto leading-relaxed drop-shadow-[0_1px_2px_rgba(255,255,255,0.1)]" style="text-shadow: 0 1px 1px rgba(255,255,255,0.05);">

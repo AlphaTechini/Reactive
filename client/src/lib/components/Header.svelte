@@ -11,7 +11,12 @@
   $: simulationMode = $appMode === 'simulation';
   
   function toggleMode(){
-    appMode.set(simulationMode ? 'live' : 'simulation');
+    // Live mode is coming soon - always redirect to simulation
+    if (simulationMode) {
+      notify.info('Live mode coming soon! Staying in simulation mode.');
+      return;
+    }
+    appMode.set('simulation');
     if (typeof window !== 'undefined') window.location.reload();
   }
   
