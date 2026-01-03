@@ -130,23 +130,17 @@
 	:global(html){ scroll-behavior:smooth; }
 	:global(body){ background:#0f172a; }
 	
-	/* Background images for light/dark themes with blur */
+	/* Background images for light/dark themes with subtle blur */
 	:global(.min-h-screen) {
-		position: relative;
-	}
-	:global(.min-h-screen)::before {
-		content: '';
-		position: fixed;
-		inset: 0;
 		background-image: url('/light%20theme%20reactive.png');
 		background-size: cover;
 		background-position: center;
+		background-attachment: fixed;
 		background-repeat: no-repeat;
-		filter: blur(4px);
-		z-index: -1;
+		backdrop-filter: blur(1px);
 	}
-	:global(.dark .min-h-screen)::before,
-	:global(body.dark .min-h-screen)::before {
+	:global(.dark .min-h-screen),
+	:global(body.dark .min-h-screen) {
 		background-image: url('/dark%20theme%20reactive.png');
 	}
 </style>
