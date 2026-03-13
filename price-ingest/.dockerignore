@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+pnpm-debug.log
+.env
+.git
+.kiro
+.vscode
+price-cache.json
+storage
+price-ingest/.env
+price-ingest/price-cache.json
+price-ingest/storage

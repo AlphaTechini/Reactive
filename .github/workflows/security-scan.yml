@@ -1,0 +1,55 @@
+name: Security Scan
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  check-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for .env files
+        run: |
+          # Find any .env files that are not .env.example
+          ENV_FILES=$(find . -name ".env*" ! -name ".env.example" -not -path "*/node_modules/*")
+          if [ -n "$ENV_FILES" ]; then
+            echo "❌ CRITICAL: Sensitive environment files found in repository:"
+            echo "$ENV_FILES"
+            echo "These files should NEVER be committed. Remove them and use GitHub Secrets instead."
+            exit 1
+          else
+            echo "✅ No sensitive .env files found."
+          fi
+
+      - name: Check for hardcoded secrets in source code
+        run: |
+          # Search for common patterns like CRYPTO_API= or secret keys
+          # This is a basic check; consider using gitleaks or similar for more robust scanning
+          FORBIDDEN_PATTERNS=("CRYPTO_API" "PRIVATE_KEY" "SECRET_KEY")
+          FOUND=0
+          
+          for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+            # Search in JS/TS/Go files for assignment of these patterns
+            # Exclude .example files and node_modules
+            MATCHES=$(grep -rEi "${pattern}\s*=" --include="*.js" --include="*.ts" --include="*.go" --exclude="*.example.*" --exclude-dir=node_modules . || true)
+            if [ -n "$MATCHES" ]; then
+              echo "⚠️ WARNING: Potential hardcoded secret found for pattern '$pattern':"
+              echo "$MATCHES"
+              FOUND=1
+            fi
+          done
+
+          if [ $FOUND -eq 1 ]; then
+             echo "❌ CRITICAL: Hardcoded secrets or sensitive configurations detected."
+             echo "Please use environment variables and a .env file (that is NOT committed)."
+             exit 1
+          else
+             echo "✅ No obvious hardcoded secrets found in source files."
+          fi
