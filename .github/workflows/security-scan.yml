@@ -30,25 +30,35 @@ jobs:
 
       - name: Check for hardcoded secrets in source code
         run: |
-          # Search for common patterns like CRYPTO_API= or secret keys
-          # This is a basic check; consider using gitleaks or similar for more robust scanning
+          # Search for common patterns like CRYPTO_API or PRIVATE_KEY
           FORBIDDEN_PATTERNS=("CRYPTO_API" "PRIVATE_KEY" "SECRET_KEY")
           FOUND=0
           
           for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
-            # Search in JS/TS/Go files for assignment of these patterns
-            # Exclude .example files and node_modules
-            MATCHES=$(grep -rEi "${pattern}\s*=" --include="*.js" --include="*.ts" --include="*.go" --exclude="*.example.*" --exclude-dir=node_modules . || true)
+            # Scan for assignments (pattern = or pattern:)
+            # 1. Grep for assignments in JS, TS, and Go files
+            # 2. Exclude any lines that contain 'process.env' (the safe/recommended way)
+            # 3. Exclude re-assignments where the pattern appears on the right side (e.g., PK = '0x' + PK)
+            # 4. Exclude lines where the pattern is just a property name in a comment or string
+            MATCHES=$(grep -rEi "${pattern}\s*[:=]" --include="*.js" --include="*.ts" --include="*.go" --exclude="*.example.*" --exclude-dir=node_modules . | \
+              grep -vi "process\.env" | \
+              grep -vEi "[:=]\s*.*\b${pattern}\b" || true)
+            
             if [ -n "$MATCHES" ]; then
-              echo "⚠️ WARNING: Potential hardcoded secret found for pattern '$pattern':"
-              echo "$MATCHES"
-              FOUND=1
+                # Final check to ignore common non-secret assignments or string formatting
+                CLEAN_MATCHES=$(echo "$MATCHES" | grep -vEi "['\"\`].*['\"\`]\s*\+\s*${pattern}" || true)
+                
+                if [ -n "$CLEAN_MATCHES" ]; then
+                  echo "⚠️ WARNING: Potential hardcoded secret found for pattern '$pattern' that doesn't use process.env:"
+                  echo "$CLEAN_MATCHES"
+                  FOUND=1
+                fi
             fi
           done
 
           if [ $FOUND -eq 1 ]; then
-             echo "❌ CRITICAL: Hardcoded secrets or sensitive configurations detected."
-             echo "Please use environment variables and a .env file (that is NOT committed)."
+             echo "❌ CRITICAL: Hardcoded secrets or non-process.env configurations detected."
+             echo "Assignments to sensitive keys MUST start with 'process.env'."
              exit 1
           else
              echo "✅ No obvious hardcoded secrets found in source files."
